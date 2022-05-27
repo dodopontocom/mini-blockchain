@@ -1,23 +1,29 @@
 #!/usr/bin/env python3
 
-import datetime
+import time
 import hashlib
 import json
+from urllib.parse import urlparse
+import requests
 
 class Blockchain:
     
     def __init__(self):
         self.chain = []
+        self.transactions = []
         self.create_block(proof = 1, hash = "0000", previous_hash = "0000")
+        self.nodes = set()
 
     def create_block(self, proof, previous_hash, hash):
         block = {
             'index': len(self.chain) + 1,
-            'timestamp': str(datetime.datetime.now()),
+            'timestamp': str(round(time.time())),
             'hash': hash,
             'proof': proof,
-            'previous_hash': previous_hash
+            'previous_hash': previous_hash,
+            'transactions': self.transactions
         }
+        self.transactions = []
         self.chain.append(block)
         return block
 
@@ -36,7 +42,8 @@ class Blockchain:
         return new_proof, hash_operation
     
     def hash(self, block):
-        encoded_block = json.dumps(block, sort_keys = True).encode()
+        #encoded_block = json.dumps(block, sort_keys = True).encode()
+        encoded_block = json.dumps(block).encode()
         return hashlib.sha256(encoded_block).hexdigest()
 
     def is_chain_valid(self, chain):
@@ -55,3 +62,36 @@ class Blockchain:
             previous_block = block
             block_index += 1
         return True
+
+    def add_transaction(self, sender, receiver, amount, fee):
+        self.transactions.append(
+            {
+                'sender': sender,
+                'receiver': receiver, 
+                'amount': amount,
+                'fee': fee
+            }
+        )
+        previous_block = self.get_previous_block()
+        return previous_block['index'] + 1
+    
+    def add_node(self, address):
+        parsed_url = urlparse(address)
+        self.nodes.add(parsed_url.netloc)
+
+    def replace_chain(self):
+        network = self.nodes
+        longest_chain = None
+        max_length = len(self.chain)
+        for node in network:
+            response = requests.get(f'http://{node}/get_chain')
+            if response.status_code == 200:
+                length = response.json()['length']
+                chain = response.json()['chain']
+                if length > max_length and self.is_chain_valid(chain):
+                    max_length = length
+                    longest_chain = chain
+        if longest_chain: 
+            self.chain = longest_chain
+            return True
+        return False
