@@ -114,5 +114,4 @@ class Blockchain:
     #TODO function to add transaction confirmations
     # hint comes from node replication/updates
 
-    #TODO recognize when transaction is from a node, reward or user to user
-
+    #TODO improve fees (add calculation to it)
