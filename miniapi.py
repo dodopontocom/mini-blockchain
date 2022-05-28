@@ -5,11 +5,12 @@ import miniblock
 from uuid import uuid4
 
 app = Flask(__name__)
-app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
+#app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
 
 blockchain = miniblock.Blockchain()
 
 node_address = str(uuid4()).replace('-', '')
+PORT = 5000
 
 @app.route('/mine_block', methods=['GET'])
 def mine_block():
@@ -18,7 +19,7 @@ def mine_block():
     previous_hash = previous_block['hash']
     proof, hash = blockchain.proof_of_work(previous_proof)
     #previous_hash = blockchain.hash(previous_block)
-    blockchain.add_transaction(sender = node_address, receiver = "Elisa", amount = 10, fee = 0.001)
+    blockchain.add_transaction(sender = node_address, receiver = "Elisa", amount = 10, fee = 0.0, type = "reward")
     block = blockchain.create_block(proof, previous_hash, hash)
 
     response = {
@@ -57,10 +58,10 @@ def is_valid():
 @app.route('/add_transaction', methods = ['POST'])
 def add_transaction():
     json = request.get_json()
-    transaction_keys = ['sender', 'receiver', 'amount', 'fee']
+    transaction_keys = ['receiver', 'amount', 'fee', 'type']
     if not all(key in json for key in transaction_keys):
         return 'Faltam elementos na transacao', 400
-    index = blockchain.add_transaction(json['sender'], json['receiver'], json['amount'], json['amount'])
+    index = blockchain.add_transaction(node_address, json['receiver'], json['amount'], json['fee'], json['type'])
     response = {'message': f'Transaction adicionada ao Block {index}'}
     return jsonify(response), 201
 
@@ -88,4 +89,6 @@ def replace_chain():
     return jsonify(response), 200
     
 if __name__ == "__main__":
-    app.run()
+    app.run(host = '0.0.0.0', port = PORT)
+
+

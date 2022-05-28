@@ -6,6 +6,8 @@ import json
 from urllib.parse import urlparse
 import requests
 
+ERA = "mini"
+
 class Blockchain:
     
     def __init__(self):
@@ -21,7 +23,8 @@ class Blockchain:
             'hash': hash,
             'proof': proof,
             'previous_hash': previous_hash,
-            'transactions': self.transactions
+            'transactions': self.transactions,
+            'era': ERA
         }
         self.transactions = []
         self.chain.append(block)
@@ -63,13 +66,15 @@ class Blockchain:
             block_index += 1
         return True
 
-    def add_transaction(self, sender, receiver, amount, fee):
+    def add_transaction(self, sender, receiver, amount, fee, type):
         self.transactions.append(
             {
                 'sender': sender,
                 'receiver': receiver, 
                 'amount': amount,
-                'fee': fee
+                'fee': fee,
+                'type': type,
+                't_timestamp': str(round(time.time()))
             }
         )
         previous_block = self.get_previous_block()
@@ -95,3 +100,6 @@ class Blockchain:
             self.chain = longest_chain
             return True
         return False
+
+    #TODO
+    #def calculate_reward
