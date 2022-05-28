@@ -7,6 +7,7 @@ import time
 
 app = Flask(__name__)
 #app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
+app.config['JSON_SORT_KEYS'] = False
 
 blockchain = miniblock.Blockchain()
 
@@ -27,12 +28,14 @@ def mine_block():
     block = blockchain.create_block(proof, previous_hash, hash)
 
     response = {
-        'message': "Congratulation!",
+        'message': "Congratulation! You've mined a Block",
+        'era': block['era'],
         'index': block['index'],
-        'timestamp': block['timestamp'],
+        'hash': block['hash'],
         'proof': block['proof'],
         'previous_hash': block['previous_hash'],
-        'hash': block['hash'],
+        'timestamp': block['timestamp'],
+        'transactions_count': block['transactions_count'],
         'transactions': block['transactions']
     }
     return jsonify(response), 200

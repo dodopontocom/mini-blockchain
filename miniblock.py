@@ -18,16 +18,16 @@ class Blockchain:
 
     def create_block(self, proof, previous_hash, hash):
         block = {
+            'era': ERA,
             'index': len(self.chain) + 1,
-            'timestamp': str(round(time.time())),
             'hash': hash,
             'proof': proof,
             'previous_hash': previous_hash,
+            'timestamp': str(round(time.time())),
+            'transactions_count': len(self.transactions),
             'transactions': self.transactions,
-            'era': ERA
         }
         self.transactions = []
-        #TODO add transaction count to the block atributes
         self.chain.append(block)
         return block
 
@@ -110,4 +110,9 @@ class Blockchain:
             return str(good)
         else:
             return str(ok)
+
+    #TODO function to add transaction confirmations
+    # hint comes from node replication/updates
+
+    #TODO recognize when transaction is from a node, reward or user to user
 
