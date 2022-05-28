@@ -19,13 +19,13 @@ def mine_block():
     previous_block = blockchain.get_previous_block()
     previous_proof = previous_block['proof']
     previous_hash = previous_block['hash']
-    proof, hash = blockchain.proof_of_work(previous_proof)
+    proof, hash, time_to_proof = blockchain.proof_of_work(previous_proof)
     #previous_hash = blockchain.hash(previous_block)
     previous_tstamp = previous_block['timestamp']
     this_time = round(time.time())
     reward = blockchain.calculate_reward(previous_tstamp, this_time)
     blockchain.add_transaction(sender = node_address, receiver = "Elisa", amount = reward, fee = 0.0, type = "reward")
-    block = blockchain.create_block(proof, previous_hash, hash)
+    block = blockchain.create_block(proof, previous_hash, hash, time_to_proof)
 
     response = {
         'message': "Congratulation! You've mined a Block",
@@ -33,6 +33,7 @@ def mine_block():
         'index': block['index'],
         'hash': block['hash'],
         'proof': block['proof'],
+        'time_to_proof': block['time_to_proof'],
         'previous_hash': block['previous_hash'],
         'timestamp': block['timestamp'],
         'transactions_count': block['transactions_count'],
@@ -69,7 +70,7 @@ def add_transaction():
     if not all(key in json for key in transaction_keys):
         return 'Elementos incorretos na transacao', 400
     if json.get('sender'):
-        index = blockchain.add_transaction(json['sender'], json['receiver'], json['amount'], json['fee'], "normal")
+        index = blockchain.add_transaction(json['sender'], json['receiver'], json['amount'], json['fee'], "standard")
     else:
         index = blockchain.add_transaction(node_address, json['receiver'], json['amount'], json['fee'], "iso")
     response = {'message': f'Transaction adicionada ao Block {index}'}

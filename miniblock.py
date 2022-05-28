@@ -5,23 +5,27 @@ import hashlib
 import json
 from urllib.parse import urlparse
 import requests
+from uuid import uuid4
 
 ERA = "mini"
+ZEROS = "0"
+GENESIS_HASH = str(uuid4()).replace('-', '')
 
 class Blockchain:
     
     def __init__(self):
         self.chain = []
         self.transactions = []
-        self.create_block(proof = 1, hash = "0000", previous_hash = "0000")
+        self.create_block(proof = 1, time_to_proof = 0, hash = f'{ZEROS}{GENESIS_HASH}', previous_hash = "big_bang_minus_one")
         self.nodes = set()
 
-    def create_block(self, proof, previous_hash, hash):
+    def create_block(self, proof, previous_hash, hash, time_to_proof):
         block = {
             'era': ERA,
             'index': len(self.chain) + 1,
             'hash': hash,
             'proof': proof,
+            'time_to_proof': time_to_proof,
             'previous_hash': previous_hash,
             'timestamp': str(round(time.time())),
             'transactions_count': len(self.transactions),
@@ -37,13 +41,16 @@ class Blockchain:
     def proof_of_work(self, previous_proof):
         new_proof = 1
         check_proof = False
+        init_proof = time.time()
         while check_proof is False:
             hash_operation = hashlib.sha256(str(new_proof**2 - previous_proof**2).encode()).hexdigest()
-            if hash_operation[:4] == "0000":
+            if hash_operation[len(ZEROS)] == ZEROS:
                 check_proof = True
+                done_proof = time.time()
             else:
                 new_proof += 1
-        return new_proof, hash_operation
+        final_proof_tstamp = round((done_proof - init_proof),10)
+        return new_proof, hash_operation, final_proof_tstamp
     
     def hash(self, block):
         #encoded_block = json.dumps(block, sort_keys = True).encode()
@@ -61,7 +68,7 @@ class Blockchain:
             previous_proof = previous_block['proof']
             proof = block['proof']
             hash_operation = hashlib.sha256(str(proof**2 - previous_proof**2).encode()).hexdigest()
-            if hash_operation[:4] != "0000":
+            if hash_operation[len(ZEROS)] != ZEROS:
                 return False
             previous_block = block
             block_index += 1
@@ -112,6 +119,9 @@ class Blockchain:
             return str(ok)
 
     #TODO function to add transaction confirmations
-    # hint comes from node replication/updates
+        # hint comes from node replication/updates
 
     #TODO improve fees (add calculation to it)
+        # maybe use time_to_proof element
+
+    #TODO how to create json for multiple transactions and add them accordly
