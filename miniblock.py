@@ -8,7 +8,7 @@ import requests
 from uuid import uuid4
 
 ERA = "mini"
-ZEROS = "0000"
+ZEROS = "000000"
 GENESIS_HASH = str(uuid4()).replace('-', '')
 
 class Blockchain:
@@ -125,3 +125,5 @@ class Blockchain:
         # maybe use time_to_proof element
 
     #TODO how to create json for multiple transactions and add them accordly
+
+    #TODO the current global variable must come from configuration/definitions separated file!
