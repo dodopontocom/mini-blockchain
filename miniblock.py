@@ -27,6 +27,7 @@ class Blockchain:
             'era': ERA
         }
         self.transactions = []
+        #TODO add transaction count to the block atributes
         self.chain.append(block)
         return block
 
@@ -101,5 +102,12 @@ class Blockchain:
             return True
         return False
 
-    #TODO
-    #def calculate_reward
+    #TODO come out with a more elaborate reward calculation
+    def calculate_reward(self, previous_block_tstamp, just_mined_block_tstamp):
+        good = 12.0
+        ok = 8.0
+        if (int(just_mined_block_tstamp) - int(previous_block_tstamp)) < 400:
+            return str(good)
+        else:
+            return str(ok)
+

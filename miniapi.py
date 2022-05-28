@@ -3,6 +3,7 @@
 from flask import Flask, jsonify, request
 import miniblock
 from uuid import uuid4
+import time
 
 app = Flask(__name__)
 #app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
@@ -19,7 +20,10 @@ def mine_block():
     previous_hash = previous_block['hash']
     proof, hash = blockchain.proof_of_work(previous_proof)
     #previous_hash = blockchain.hash(previous_block)
-    blockchain.add_transaction(sender = node_address, receiver = "Elisa", amount = 10, fee = 0.0, type = "reward")
+    previous_tstamp = previous_block['timestamp']
+    this_time = round(time.time())
+    reward = blockchain.calculate_reward(previous_tstamp, this_time)
+    blockchain.add_transaction(sender = node_address, receiver = "Elisa", amount = reward, fee = 0.0, type = "reward")
     block = blockchain.create_block(proof, previous_hash, hash)
 
     response = {

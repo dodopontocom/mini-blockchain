@@ -1,6 +1,6 @@
-{
-    "receiver": "Rodolfo",
-    "amount": 10,
-    "fee": 0.01,
-    "type": "iso"
-}
+    {
+        "receiver": "Rodolfo",
+        "amount": 10,
+        "fee": 0.01,
+        "type": "iso"
+    }
