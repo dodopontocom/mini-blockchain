@@ -8,7 +8,7 @@ import requests
 from uuid import uuid4
 
 ERA = "mini"
-ZEROS = "0"
+ZEROS = "0000"
 GENESIS_HASH = str(uuid4()).replace('-', '')
 
 class Blockchain:
@@ -44,7 +44,7 @@ class Blockchain:
         init_proof = time.time()
         while check_proof is False:
             hash_operation = hashlib.sha256(str(new_proof**2 - previous_proof**2).encode()).hexdigest()
-            if hash_operation[len(ZEROS)] == ZEROS:
+            if hash_operation[:len(ZEROS)] == ZEROS:
                 check_proof = True
                 done_proof = time.time()
             else:
@@ -68,7 +68,7 @@ class Blockchain:
             previous_proof = previous_block['proof']
             proof = block['proof']
             hash_operation = hashlib.sha256(str(proof**2 - previous_proof**2).encode()).hexdigest()
-            if hash_operation[len(ZEROS)] != ZEROS:
+            if hash_operation[:len(ZEROS)] != ZEROS:
                 return False
             previous_block = block
             block_index += 1
