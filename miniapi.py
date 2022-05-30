@@ -7,7 +7,7 @@ import time
 
 app = Flask(__name__)
 #app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
-app.config['JSON_SORT_KEYS'] = False
+app.config['JSON_SORT_KEYS'] = True
 
 blockchain = miniblock.Blockchain()
 
@@ -17,15 +17,15 @@ PORT = 5000
 @app.route('/mine_block', methods=['GET'])
 def mine_block():
     previous_block = blockchain.get_previous_block()
-    previous_proof = previous_block['proof']
+    #previous_proof = previous_block['proof']
     previous_hash = previous_block['hash']
-    proof, hash, time_to_proof = blockchain.proof_of_work(previous_proof)
+    #proof, hash, time_to_proof = blockchain.proof_of_work(previous_proof)
     #previous_hash = blockchain.hash(previous_block)
     previous_tstamp = previous_block['timestamp']
     this_time = round(time.time())
     reward = blockchain.calculate_reward(previous_tstamp, this_time)
     blockchain.add_transaction(sender = node_address, receiver = "Elisa", amount = reward, fee = 0.0, type = "reward")
-    block = blockchain.create_block(proof, previous_hash, hash, time_to_proof)
+    block = blockchain.create_block(previous_hash)
 
     response = {
         'message': "Congratulation! You've mined a Block",

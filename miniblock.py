@@ -19,16 +19,14 @@ class Blockchain:
     def __init__(self):
         self.chain = []
         self.transactions = []
-        self.create_block(proof = 1, time_to_proof = 0, hash = f'{ZEROS}{GENESIS_HASH}', previous_hash = "big_bang_minus_one")
+        #self.create_block(proof = 1, time_to_proof = 0, hash = f'{ZEROS}{GENESIS_HASH}', previous_hash = "big_bang_minus_one")
+        self.create_block(previous_hash = "big_bang_minus_one")
         self.nodes = set()
 
-    def create_block(self, proof, previous_hash, hash, time_to_proof):
+    def create_block(self, previous_hash):
         block = {
             'era': ERA,
             'index': len(self.chain) + 1,
-            'hash': hash,
-            'proof': proof,
-            'time_to_proof': time_to_proof,
             'previous_hash': previous_hash,
             'timestamp': str(round(time.time())),
             'transactions_count': len(self.transactions),
@@ -42,20 +40,6 @@ class Blockchain:
 
     def get_previous_block(self):
         return self.chain[-1]
-
-    def proof_of_work(self, previous_proof):
-        new_proof = 1
-        check_proof = False
-        init_proof = time.time()
-        while check_proof is False:
-            hash_operation = hashlib.sha256(str(new_proof**2 - previous_proof**2).encode()).hexdigest()
-            if hash_operation[:len(ZEROS)] == ZEROS:
-                check_proof = True
-                done_proof = time.time()
-            else:
-                new_proof += 1
-        final_proof_tstamp = round((done_proof - init_proof),10)
-        return new_proof, hash_operation, final_proof_tstamp
     
     def hash(self, type, block):
         new_proof = 1
@@ -87,7 +71,6 @@ class Blockchain:
                 else:
                     new_proof += 1
         return block
-
 
     def is_chain_valid(self, chain):
         previous_block = chain[0]
