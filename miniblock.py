@@ -6,10 +6,13 @@ import json
 from urllib.parse import urlparse
 import requests
 from uuid import uuid4
+from hashlib import blake2b
 
 ERA = "mini"
-ZEROS = "000000"
+ZEROS = "0000"
 GENESIS_HASH = str(uuid4()).replace('-', '')
+SECRET_KEY = "sometextheretogeneraterandomsecret".encode()
+AUTH_SIZE = 32
 
 class Blockchain:
     
@@ -32,7 +35,9 @@ class Blockchain:
             'transactions': self.transactions,
         }
         self.transactions = []
-        self.chain.append(block)
+        #self.chain.append(block)
+        self.chain.append(self.hash("sha", block))
+        #block['hash'] = self.hash("sha", block)
         return block
 
     def get_previous_block(self):
@@ -52,10 +57,37 @@ class Blockchain:
         final_proof_tstamp = round((done_proof - init_proof),10)
         return new_proof, hash_operation, final_proof_tstamp
     
-    def hash(self, block):
-        #encoded_block = json.dumps(block, sort_keys = True).encode()
-        encoded_block = json.dumps(block).encode()
-        return hashlib.sha256(encoded_block).hexdigest()
+    def hash(self, type, block):
+        new_proof = 1
+        check_proof = False
+        init_proof = time.time()
+        if type == "sha":
+            while check_proof is False:
+                block['proof'] = new_proof
+                hash = hashlib.sha256(json.dumps(block).encode()).hexdigest()
+                if hash[:len(ZEROS)] == ZEROS:
+                    check_proof = True
+                    done_proof = time.time()
+                    block['hash'] = hash
+                    block['proof'] = new_proof
+                    block['time_to_proof'] = round((done_proof - init_proof),10)
+                else:
+                    new_proof += 1
+        if type == "blake":
+            while check_proof is False:
+                h = blake2b(digest_size=AUTH_SIZE, key=SECRET_KEY)
+                h.update(json.dumps(block).encode())
+                hash = h.hexdigest()
+                if hash[:len(ZEROS)] == ZEROS:
+                    check_proof = True
+                    done_proof = time.time()
+                    block['hash'] = hash
+                    block['proof'] = new_proof
+                    block['time_to_proof'] = round((done_proof - init_proof),10)
+                else:
+                    new_proof += 1
+        return block
+
 
     def is_chain_valid(self, chain):
         previous_block = chain[0]
