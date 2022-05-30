@@ -69,7 +69,7 @@ class Blockchain:
                 return False
             previous_proof = previous_block['proof']
             proof = block['proof']
-            hash_operation = hashlib.sha256(str(proof**2 - previous_proof**2).encode()).hexdigest()
+            hash_operation = hashlib.sha256(json.dumps(block)).encode().hexdigest()
             if hash_operation[:len(ZEROS)] != ZEROS:
                 return False
             previous_block = block
