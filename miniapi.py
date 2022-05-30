@@ -17,10 +17,7 @@ PORT = 5000
 @app.route('/mine_block', methods=['GET'])
 def mine_block():
     previous_block = blockchain.get_previous_block()
-    #previous_proof = previous_block['proof']
     previous_hash = previous_block['hash']
-    #proof, hash, time_to_proof = blockchain.proof_of_work(previous_proof)
-    #previous_hash = blockchain.hash(previous_block)
     previous_tstamp = previous_block['timestamp']
     this_time = round(time.time())
     reward = blockchain.calculate_reward(previous_tstamp, this_time)
@@ -37,7 +34,8 @@ def mine_block():
         'previous_hash': block['previous_hash'],
         'timestamp': block['timestamp'],
         'transactions_count': block['transactions_count'],
-        'transactions': block['transactions']
+        'transactions': block['transactions'],
+        'blake2b': block['blake2b']
     }
     return jsonify(response), 200
 

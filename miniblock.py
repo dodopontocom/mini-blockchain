@@ -19,7 +19,6 @@ class Blockchain:
     def __init__(self):
         self.chain = []
         self.transactions = []
-        #self.create_block(proof = 1, time_to_proof = 0, hash = f'{ZEROS}{GENESIS_HASH}', previous_hash = "big_bang_minus_one")
         self.create_block(previous_hash = "big_bang_minus_one")
         self.nodes = set()
 
@@ -33,9 +32,7 @@ class Blockchain:
             'transactions': self.transactions,
         }
         self.transactions = []
-        #self.chain.append(block)
         self.chain.append(self.hash("sha", block))
-        #block['hash'] = self.hash("sha", block)
         return block
 
     def get_previous_block(self):
@@ -55,19 +52,10 @@ class Blockchain:
                     block['hash'] = hash
                     block['proof'] = new_proof
                     block['time_to_proof'] = round((done_proof - init_proof),10)
-                else:
-                    new_proof += 1
-        if type == "blake":
-            while check_proof is False:
-                h = blake2b(digest_size=AUTH_SIZE, key=SECRET_KEY)
-                h.update(json.dumps(block).encode())
-                hash = h.hexdigest()
-                if hash[:len(ZEROS)] == ZEROS:
-                    check_proof = True
-                    done_proof = time.time()
-                    block['hash'] = hash
-                    block['proof'] = new_proof
-                    block['time_to_proof'] = round((done_proof - init_proof),10)
+
+                    h = blake2b(digest_size=AUTH_SIZE, key=SECRET_KEY)
+                    h.update(json.dumps(block).encode())
+                    block['blake2b'] = h.hexdigest()
                 else:
                     new_proof += 1
         return block
@@ -77,7 +65,6 @@ class Blockchain:
         block_index = 1
         while block_index < len(chain):
             block = chain[block_index]
-            #if block['previous_hash'] != self.hash(previous_block):
             if block['previous_hash'] != previous_block['hash']:
                 return False
             previous_proof = previous_block['proof']
