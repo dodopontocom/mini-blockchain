@@ -19,9 +19,24 @@ class Blockchain:
     def __init__(self):
         self.chain = []
         self.transactions = []
-        self.create_block(previous_hash = "big_bang_minus_one")
         self.nodes = set()
+        
+        ##########################################
+        #TODO make it as function!!!
+        #self.connect_nodes
+        f = open('nodes.json')
+        data = json.load(f)
+        for (v) in data['nodes']:
+            if v is None:
+                return "No nodes to add"
+            parsed_url = urlparse(str(v))
+            self.nodes.add(parsed_url.netloc)
 
+        print(list(self.nodes))
+        ##########################################
+
+        self.create_block(previous_hash = "big_bang_minus_one")
+    
     def create_block(self, previous_hash):
         block = {
             'era': ERA,
@@ -103,7 +118,7 @@ class Blockchain:
             if response.status_code == 200:
                 length = response.json()['length']
                 chain = response.json()['chain']
-                print(f'{length} {chain}')
+                #print(f'{length} {chain}')
                 if length > max_length and self.is_chain_valid(chain):
                     max_length = length
                     longest_chain = chain
