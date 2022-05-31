@@ -35,9 +35,7 @@ class Blockchain:
 
         print(list(self.nodes))
         ##########################################
-
-        if not self.replace_chain():
-            self.create_block(previous_hash = "big_bang_minus_one")
+        self.create_block(previous_hash = "big_bang_minus_one")
     
     def create_block(self, previous_hash):
         block = {
@@ -111,23 +109,19 @@ class Blockchain:
         parsed_url = urlparse(address)
         self.nodes.add(parsed_url.netloc)
 
-    def host_port(self, port):
-        return port
-
     def replace_chain(self):
         network = self.nodes
         longest_chain = None
         max_length = len(self.chain)
         for node in network:
-            if not '5000' in node:
-                response = requests.get(f'http://{node}/get_chain')
-                if response.status_code == 200:
-                    length = response.json()['length']
-                    chain = response.json()['chain']
-                    print(f'{length} {chain}')
-                    if length > max_length and self.is_chain_valid(chain):
-                        max_length = length
-                        longest_chain = chain
+            response = requests.get(f'http://{node}/get_chain')
+            if response.status_code == 200:
+                length = response.json()['length']
+                chain = response.json()['chain']
+                print(f'{length} {chain}')
+                if length > max_length and self.is_chain_valid(chain):
+                    max_length = length
+                    longest_chain = chain
         if longest_chain: 
             self.chain = longest_chain
             return True
