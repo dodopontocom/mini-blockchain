@@ -109,6 +109,9 @@ class Blockchain:
         parsed_url = urlparse(address)
         self.nodes.add(parsed_url.netloc)
 
+    #TODO - scenario: when there is no (previous) running hosts, it gets error 111, connection refused
+    #so, do a verification and execute replace_chain only if there is runnning hosts a part from this self
+    #mine a block is not possible if there is no more running hosts
     def replace_chain(self):
         network = self.nodes
         longest_chain = None
