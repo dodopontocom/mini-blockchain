@@ -112,9 +112,14 @@ class Blockchain:
         return False
 
     #TODO come out with a more elaborate reward calculation
-    def calculate_reward(self, previous_block_tstamp, just_mined_block_tstamp):
-        good = 12.0
-        ok = 8.0
+    # (done) also calculate using number of transactions in a block, the more the more reward
+    def calculate_reward(self, previous_block_tstamp, just_mined_block_tstamp, transactions_count):
+        if transactions_count > 50:
+            good = 50.0
+            ok = 22.0
+        else:
+            good = 10.0
+            ok = 6.5
         if (int(just_mined_block_tstamp) - int(previous_block_tstamp)) < 400:
             return str(good)
         else:

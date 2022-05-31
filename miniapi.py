@@ -20,7 +20,8 @@ def mine_block():
     previous_hash = previous_block['hash']
     previous_tstamp = previous_block['timestamp']
     this_time = round(time.time())
-    reward = blockchain.calculate_reward(previous_tstamp, this_time)
+    transactions_count = len(blockchain.transactions)
+    reward = blockchain.calculate_reward(previous_tstamp, this_time, transactions_count)
     blockchain.add_transaction(sender = node_address, receiver = "Elisa", amount = reward, fee = 0.0, type = "reward")
     block = blockchain.create_block(previous_hash)
 
