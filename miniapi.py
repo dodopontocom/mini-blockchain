@@ -4,6 +4,7 @@ from flask import Flask, jsonify, request
 import miniblock
 from uuid import uuid4
 import time
+import sys
 
 app = Flask(__name__)
 #app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
@@ -12,7 +13,7 @@ app.config['JSON_SORT_KEYS'] = True
 blockchain = miniblock.Blockchain()
 
 node_address = str(uuid4()).replace('-', '')
-PORT = 5000
+PORT = sys.argv[1]
 
 @app.route('/mine_block', methods=['GET'])
 def mine_block():
