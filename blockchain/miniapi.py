@@ -5,6 +5,7 @@ import miniblock
 from uuid import uuid4
 import time
 import sys
+import socket
 
 app = Flask(__name__)
 #app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
@@ -12,11 +13,33 @@ app.config['JSON_SORT_KEYS'] = True
 
 blockchain = miniblock.Blockchain()
 
-node_address = str(uuid4()).replace('-', '')
+hostname = socket.gethostname()
+uuid_string = str(uuid4()).replace('-', '')
+node_address = f'{hostname}_{uuid_string}'
 PORT = sys.argv[1]
 
+@app.route('/replace_chain', methods = ['GET'])
+def replace_chain():
+    is_chain_replaced = blockchain.replace_chain()
+    if is_chain_replaced:
+        response = {'message' : 'Los nodos tenían diferentes cadenas, que han sido todas reemplazadas por la más larga.',
+                    'new_chain': blockchain.chain}
+    else:
+        response = {'message' : 'Todo correcto. La cadena en todos los nodos ya es la más larga.',
+                    'actual_chain' : blockchain.chain}
+    return jsonify(response), 200
+
 @app.route('/mine_block', methods=['GET'])
-def mine_block():
+def _replace_chain():
+    is_chain_replaced = blockchain.replace_chain()
+    if is_chain_replaced:
+        _response = {'message' : 'Los nodos tenían diferentes cadenas, que han sido todas reemplazadas por la más larga.',
+                    'new_chain': blockchain.chain}
+    else:
+        _response = {'message' : 'Todo correcto. La cadena en todos los nodos ya es la más larga.',
+                    'actual_chain' : blockchain.chain}
+    #return jsonify(_response), 200
+
     previous_block = blockchain.get_previous_block()
     previous_hash = previous_block['hash']
     previous_tstamp = previous_block['timestamp']
@@ -39,7 +62,7 @@ def mine_block():
         'transactions': block['transactions'],
         'blake2b': block['blake2b']
     }
-    return jsonify(response), 200
+    return jsonify(_response, response), 200
 
 @app.route('/get_chain', methods=['GET'])
 def get_chain():
@@ -87,18 +110,7 @@ def connect_node():
     response = {'message' : 'Todos los nodos han sido conectados. La cadena de Jbcoins contiene ahora los nodos siguientes: ',
                 'total_nodes': list(blockchain.nodes)}
     return jsonify(response), 201
-
-@app.route('/replace_chain', methods = ['GET'])
-def replace_chain():
-    is_chain_replaced = blockchain.replace_chain()
-    if is_chain_replaced:
-        response = {'message' : 'Los nodos tenían diferentes cadenas, que han sido todas reemplazadas por la más larga.',
-                    'new_chain': blockchain.chain}
-    else:
-        response = {'message' : 'Todo correcto. La cadena en todos los nodos ya es la más larga.',
-                    'actual_chain' : blockchain.chain}
-    return jsonify(response), 200
-    
+  
 if __name__ == "__main__":
     app.run(host = '0.0.0.0', port = PORT)
 
