@@ -14,7 +14,7 @@ for i in $(seq 1 ${count}); do
     for i in $(seq 1 ${half}); do
         curl -sX POST http://127.0.0.1:${PORT}/add_transaction -d @${jsons}/transaction_withsender.json -H "Content-Type: application/json"
     done
-    curl -s GET http://127.0.0.1:${PORT}/mine_block
+    curl -s GET http://127.0.0.1:${PORT}/mint_block
 done
 
 for i in $(seq 1 ${count}); do
@@ -22,7 +22,7 @@ for i in $(seq 1 ${count}); do
     for i in $(seq 1 ${half}); do
         curl -sX POST http://127.0.0.1:${PORT}/add_transaction -d @${jsons}/transaction.json -H "Content-Type: application/json"
     done
-    curl -s GET http://127.0.0.1:${PORT}/mine_block
+    curl -s GET http://127.0.0.1:${PORT}/mint_block
 done
 
 curl -s GET http://127.0.0.1:${PORT}/is_valid | jq

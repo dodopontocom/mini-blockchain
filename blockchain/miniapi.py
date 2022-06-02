@@ -29,7 +29,7 @@ def replace_chain():
                     'actual_chain' : blockchain.chain}
     return jsonify(response), 200
 
-@app.route('/mine_block', methods=['GET'])
+@app.route('/mint_block', methods=['GET'])
 def _replace_chain():
     is_chain_replaced = blockchain.replace_chain()
     if is_chain_replaced:
