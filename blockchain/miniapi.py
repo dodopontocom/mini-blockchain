@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, session, redirect, url_for, render_template
 import miniblock
 from uuid import uuid4
 import time
@@ -86,6 +86,22 @@ def is_valid():
         }
     return jsonify(response), 200
 
+@app.route("/")
+def home():
+    return render_template('home.html')
+
+
+@app.route('/_add_transaction', methods=['GET', 'POST'])
+def _add_transaction():
+    sender = request.args.get('sender')
+    receiver = request.args.get('receiver')
+    amount = request.args.get('amount')
+    fee = request.args.get('fee')
+    index = blockchain.add_transaction(sender, receiver, amount, "0.17", "ui-test")
+    response = {'message': f'Transaction will be added to Block index: {index}'}
+    return jsonify(response), 201
+    #return redirect(url_for('index')), 201
+
 @app.route('/add_transaction', methods = ['POST'])
 def add_transaction():
     json = request.get_json()
@@ -96,7 +112,7 @@ def add_transaction():
         index = blockchain.add_transaction(json['sender'], json['receiver'], json['amount'], json['fee'], "standard")
     else:
         index = blockchain.add_transaction(node_address, json['receiver'], json['amount'], json['fee'], "iso")
-    response = {'message': f'Transaction adicionada ao Block {index}'}
+    response = {'message': f'Transaction will be added to Block index: {index}'}
     return jsonify(response), 201
 
 @app.route('/connect_node', methods = ['POST'])
@@ -110,7 +126,7 @@ def connect_node():
     response = {'message' : 'Todos los nodos han sido conectados. La cadena de Jbcoins contiene ahora los nodos siguientes: ',
                 'total_nodes': list(blockchain.nodes)}
     return jsonify(response), 201
-  
+
 if __name__ == "__main__":
     app.run(host = '0.0.0.0', port = PORT)
 
