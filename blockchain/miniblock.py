@@ -8,12 +8,7 @@ import requests
 from uuid import uuid4
 from hashlib import blake2b
 import re
-
-ERA = "mini"
-ZEROS = "0000"
-GENESIS_HASH = str(uuid4()).replace('-', '')
-SECRET_KEY = "sometextheretogeneraterandomsecret".encode()
-AUTH_SIZE = 32
+import _global
 
 class Blockchain:
     
@@ -39,7 +34,7 @@ class Blockchain:
     
     def create_block(self, previous_hash):
         block = {
-            'era': ERA,
+            'era': _global.ERA,
             'index': len(self.chain) + 1,
             'previous_hash': previous_hash,
             'timestamp': str(round(time.time())),
@@ -61,14 +56,14 @@ class Blockchain:
             while check_proof is False:
                 block['proof'] = new_proof
                 hash = hashlib.sha256(json.dumps(block).encode()).hexdigest()
-                if hash[:len(ZEROS)] == ZEROS:
+                if hash[:len(_global.ZEROS)] == _global.ZEROS:
                     check_proof = True
                     done_proof = time.time()
                     block['hash'] = hash
                     block['proof'] = new_proof
                     block['time_to_proof'] = round((done_proof - init_proof),10)
 
-                    h = blake2b(digest_size=AUTH_SIZE, key=SECRET_KEY)
+                    h = blake2b(digest_size=_global.AUTH_SIZE, key=_global.SECRET_KEY)
                     h.update(json.dumps(block).encode())
                     block['blake2b'] = h.hexdigest()
                 else:
