@@ -86,12 +86,18 @@ class Blockchain:
             block_index += 1
         return True
 
-    def add_transaction(self, sender, receiver, amount, fee, type):
+    def add_transaction(self, sender, receiver, amount, message, type):
+        
+        if type != "reward":
+            fee = self.calculate_fee(amount)
+        else:
+            fee = 0.0
         self.transactions.append(
             {
                 'sender': sender,
                 'receiver': receiver, 
                 'amount': amount,
+                'message': message,
                 'fee': fee,
                 'type': type,
                 't_timestamp': str(round(time.time()))
@@ -144,6 +150,9 @@ class Blockchain:
 
     #TODO improve fees (add calculation to it)
         # maybe use time_to_proof element
+        # cardano uses babel fees (whats that?)
+    def calculate_fee(self, amount):
+        return str(round(float(amount) * float(0.18)/float(100),3))
 
     #TODO how to create json for multiple transactions and add them accordly
 

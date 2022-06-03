@@ -1,5 +1,5 @@
     {
         "receiver": "Paul",
         "amount": 10.0,
-        "fee": 0.01
+        "message": "no sender so, in this case sender will be the node id"
     }

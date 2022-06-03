@@ -46,7 +46,8 @@ def _replace_chain():
     this_time = round(time.time())
     transactions_count = len(blockchain.transactions)
     reward = blockchain.calculate_reward(previous_tstamp, this_time, transactions_count)
-    blockchain.add_transaction(sender = node_address, receiver = "Elisa", amount = reward, fee = 0.0, type = "reward")
+    _message = "This is a reward transaction for minting a block!"
+    blockchain.add_transaction(sender = node_address, receiver = "Elisa", amount = reward, message = _message, type = "reward")
     block = blockchain.create_block(previous_hash)
 
     response = {
@@ -88,7 +89,7 @@ def is_valid():
 
 @app.route("/")
 def home():
-    return render_template('home.html')
+    return render_template('add_transaction.html')
 
 
 @app.route('/_add_transaction', methods=['GET', 'POST'])
@@ -96,8 +97,8 @@ def _add_transaction():
     sender = request.args.get('sender')
     receiver = request.args.get('receiver')
     amount = request.args.get('amount')
-    fee = request.args.get('fee')
-    index = blockchain.add_transaction(sender, receiver, amount, "0.17", "ui-test")
+    message = request.args.get('message')
+    index = blockchain.add_transaction(sender, receiver, amount, message, "ui-test")
     response = {'message': f'Transaction will be added to Block index: {index}'}
     return jsonify(response), 201
     #return redirect(url_for('index')), 201
@@ -105,13 +106,13 @@ def _add_transaction():
 @app.route('/add_transaction', methods = ['POST'])
 def add_transaction():
     json = request.get_json()
-    transaction_keys = ['receiver', 'amount', 'fee']
+    transaction_keys = ['receiver', 'amount', 'message']
     if not all(key in json for key in transaction_keys):
         return 'Elementos incorretos na transacao', 400
     if json.get('sender'):
-        index = blockchain.add_transaction(json['sender'], json['receiver'], json['amount'], json['fee'], "standard")
+        index = blockchain.add_transaction(json['sender'], json['receiver'], json['amount'], json['message'], "standard")
     else:
-        index = blockchain.add_transaction(node_address, json['receiver'], json['amount'], json['fee'], "iso")
+        index = blockchain.add_transaction(node_address, json['receiver'], json['amount'], json['message'], "iso")
     response = {'message': f'Transaction will be added to Block index: {index}'}
     return jsonify(response), 201
 
