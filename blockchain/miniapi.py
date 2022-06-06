@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 
+import uuid
 from flask import Flask, jsonify, request, session, redirect, url_for, render_template
 import miniblock
 from uuid import uuid4
 import time
 import sys
 import socket
+import _global
 
 app = Flask(__name__)
 #app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
@@ -15,7 +17,6 @@ blockchain = miniblock.Blockchain()
 
 hostname = socket.gethostname()
 uuid_string = str(uuid4()).replace('-', '')
-node_address = f'{hostname}_{uuid_string}'
 PORT = sys.argv[1]
 
 @app.route('/replace_chain', methods = ['GET'])
@@ -47,6 +48,10 @@ def _replace_chain():
     transactions_count = len(blockchain.transactions)
     reward = blockchain.calculate_reward(previous_tstamp, this_time, transactions_count)
     _message = "This is a reward transaction for minting a block!"
+    if request.user_agent.browser:
+        node_address = f'{request.user_agent.browser}_{uuid_string}'
+    else:
+        node_address = f'{hostname}_{uuid_string}'
     blockchain.add_transaction(sender = node_address, receiver = "Elisa", amount = reward, message = _message, type = "reward")
     block = blockchain.create_block(previous_hash)
 
@@ -91,17 +96,24 @@ def is_valid():
 def home():
     return render_template('add_transaction.html')
 
+@app.route("/mint_a_block")
+def _home():
+    return render_template('mint_a_block.html')
+
 
 @app.route('/_add_transaction', methods=['GET', 'POST'])
 def _add_transaction():
     sender = request.args.get('sender')
+    print(sender)
+    if sender == "":
+        sender = f'{request.user_agent.browser}_{uuid_string}'
     receiver = request.args.get('receiver')
     amount = request.args.get('amount')
     message = request.args.get('message')
     index = blockchain.add_transaction(sender, receiver, amount, message, "ui-test")
     response = {'message': f'Transaction will be added to Block index: {index}'}
+    #return redirect(url_for('_add_transaction')), 201
     return jsonify(response), 201
-    #return redirect(url_for('index')), 201
 
 @app.route('/add_transaction', methods = ['POST'])
 def add_transaction():
@@ -112,6 +124,7 @@ def add_transaction():
     if json.get('sender'):
         index = blockchain.add_transaction(json['sender'], json['receiver'], json['amount'], json['message'], "standard")
     else:
+        node_address = f'{hostname}_{uuid_string}'
         index = blockchain.add_transaction(node_address, json['receiver'], json['amount'], json['message'], "iso")
     response = {'message': f'Transaction will be added to Block index: {index}'}
     return jsonify(response), 201
