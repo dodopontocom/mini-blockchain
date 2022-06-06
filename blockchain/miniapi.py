@@ -34,10 +34,10 @@ def replace_chain():
 def _replace_chain():
     is_chain_replaced = blockchain.replace_chain()
     if is_chain_replaced:
-        _response = {'message' : 'Los nodos tenían diferentes cadenas, que han sido todas reemplazadas por la más larga.',
+        _response = {'message' : 'Nodes are now replaced.',
                     'new_chain': blockchain.chain}
     else:
-        _response = {'message' : 'Todo correcto. La cadena en todos los nodos ya es la más larga.',
+        _response = {'message' : 'All good. This node has most long chain',
                     'actual_chain' : blockchain.chain}
     #return jsonify(_response), 200
 
@@ -104,6 +104,7 @@ def _home():
 @app.route('/_add_transaction', methods=['GET', 'POST'])
 def _add_transaction():
     index = None
+    response = None
     if request.form.get('add_transaction'):
         sender = request.form.get('sender')
         print(sender)
@@ -113,6 +114,7 @@ def _add_transaction():
         amount = request.form.get('amount')
         message = request.form.get('message')
         index = blockchain.add_transaction(sender, receiver, amount, message, "ui-test")
+        response = {'message': f'Transaction will added to Block index: {index}'}
     if request.form.get('add_and_mint'):
         sender = request.form.get('sender')
         print(sender)
@@ -122,9 +124,9 @@ def _add_transaction():
         amount = request.form.get('amount')
         message = request.form.get('message')
         index = blockchain.add_transaction(sender, receiver, amount, message, "ui-test")
+        response = {'message': f'Transaction added, and Block minted with index: {index}'}
         _replace_chain()
 
-    response = {'message': f'Transaction is now added to Block index: {index}'}
     #return redirect(url_for('_add_transaction')), 201
     return jsonify(response), 201
 
