@@ -6,7 +6,7 @@
 </head>
 <body>
 <h1>Add a transaction</h1>
-<form action="_add_transaction">
+<form method="post" action="_add_transaction">
     <label for="sender">Sender</label>
     <input type="text" name="sender" value="">
     <p><label for="receiver">Receiver</label>
@@ -15,7 +15,10 @@
     <input type="text" name="amount" value="" required></p>
     <p><label for="message">Message</label>
     <input type="text" name="message" value="Type a short message" required></p>
-    <p><input type="submit" value="Add"></p>
+    <!--<p><input type="submit" name="add_transaction" value="Just add the transaction"></p>
+    <p><input type="submit" name="add_and_mint" value="Add and mint next block!"></p> -->
+    <button type="submit" name="add_transaction" value="add_transaction">Just add the transaction</button>
+    <p><button type="submit" name="add_and_mint" value="add_and_mint">Add and mint next block!</button></p>
 </form>
 
 </body>

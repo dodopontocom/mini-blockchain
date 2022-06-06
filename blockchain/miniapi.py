@@ -103,15 +103,28 @@ def _home():
 
 @app.route('/_add_transaction', methods=['GET', 'POST'])
 def _add_transaction():
-    sender = request.args.get('sender')
-    print(sender)
-    if sender == "":
-        sender = f'{request.user_agent.browser}_{uuid_string}'
-    receiver = request.args.get('receiver')
-    amount = request.args.get('amount')
-    message = request.args.get('message')
-    index = blockchain.add_transaction(sender, receiver, amount, message, "ui-test")
-    response = {'message': f'Transaction will be added to Block index: {index}'}
+    index = None
+    if request.form.get('add_transaction'):
+        sender = request.form.get('sender')
+        print(sender)
+        if sender == "":
+            sender = f'{request.user_agent.browser}_{uuid_string}'
+        receiver = request.form.get('receiver')
+        amount = request.form.get('amount')
+        message = request.form.get('message')
+        index = blockchain.add_transaction(sender, receiver, amount, message, "ui-test")
+    if request.form.get('add_and_mint'):
+        sender = request.form.get('sender')
+        print(sender)
+        if sender == "":
+            sender = f'{request.user_agent.browser}_{uuid_string}'
+        receiver = request.form.get('receiver')
+        amount = request.form.get('amount')
+        message = request.form.get('message')
+        index = blockchain.add_transaction(sender, receiver, amount, message, "ui-test")
+        _replace_chain()
+
+    response = {'message': f'Transaction is now added to Block index: {index}'}
     #return redirect(url_for('_add_transaction')), 201
     return jsonify(response), 201
 
