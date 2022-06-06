@@ -10,24 +10,36 @@ half=$(expr ${count} / 2)
 PORT=$2
 
 for i in $(seq 1 ${count}); do
+    for t in $(ls ${jsons}/_transaction*.json); do
+        echo ${t}
+        json_count=$(jq length ${t})
+        echo ${json_count}
+        _counter=0
+        while [[ ${_counter} -lt ${json_count} ]]; do
+            curl -sX POST http://127.0.0.1:${PORT}/add_transaction -d "$(cat ${t} | jq ".[${_counter}]")" -H "Content-Type: application/json"
+            cat ${t} | jq ".[${_counter}]"
+            echo "- - - count: ${_counter}"
+            _counter=$((_counter+1))
+            #sleep 5
+        done
+        curl -s GET http://127.0.0.1:${PORT}/mint_block
+    done
+    
     curl -sX POST http://127.0.0.1:${PORT}/add_transaction -d @${jsons}/transaction.json -H "Content-Type: application/json"
     for i in $(seq 1 ${half}); do
         curl -sX POST http://127.0.0.1:${PORT}/add_transaction -d @${jsons}/transaction_withsender.json -H "Content-Type: application/json"
     done
     curl -s GET http://127.0.0.1:${PORT}/mint_block
-done
-
-for i in $(seq 1 ${count}); do
+    
     curl -sX POST http://127.0.0.1:${PORT}/add_transaction -d @${jsons}/transaction_withsender.json -H "Content-Type: application/json"
     for i in $(seq 1 ${half}); do
         curl -sX POST http://127.0.0.1:${PORT}/add_transaction -d @${jsons}/transaction.json -H "Content-Type: application/json"
     done
     curl -s GET http://127.0.0.1:${PORT}/mint_block
+    
 done
 
+sleep 2
 curl -s GET http://127.0.0.1:${PORT}/is_valid | jq
-sleep 5
+sleep 2
 curl -s GET http://127.0.0.1:${PORT}/get_chain | jq
-
-
-

@@ -14,3 +14,5 @@ then sending several requests to the blockchain (in another terminal window)
 `$ PORT=5000 curl -s http://127.0.0.1:${PORT}/mint_block | jq`  
 `$ PORT=5000 curl -s http://127.0.0.1:${PORT}/get_chain | jq`  
 `$ PORT=5000 curl -s http://127.0.0.1:${PORT}/is_valid | jq`
+
+FLASK_ENV=development ./miniapi.py 5000
