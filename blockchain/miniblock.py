@@ -31,8 +31,8 @@ class Blockchain:
 
         print("nodes: " + str(list(self.nodes)))
         ##########################################
-        self.create_block(previous_hash = "big_bang_minus_one")
-        self.replace_chain()
+        if not self.replace_chain():
+            self.create_block(previous_hash = "big_bang_minus_one")
     
     def create_block(self, previous_hash):
         block = {
