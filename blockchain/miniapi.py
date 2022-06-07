@@ -127,7 +127,7 @@ def _add_transaction():
         amount = request.form.get('amount')
         message = request.form.get('message')
         index = blockchain.add_transaction(sender, receiver, amount, message, "ui-test")
-        response = {'message': f'Transaction added, and Block minted with index: {index}'}
+        response = {'message': f'Transaction added, and Block minted with index: {index}+'}
         _replace_chain()
 
     #return redirect(url_for('_add_transaction')), 201
