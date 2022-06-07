@@ -113,16 +113,16 @@ def _add_transaction():
     if request.form.get('add_transaction'):
         sender = request.form.get('sender')
         if sender == "":
-            sender = f'{request.user_agent.browser}_{uuid_string}'
+            sender = f'{request.user_agent.browser}_{uuid_string}_{PORT}'
         receiver = request.form.get('receiver')
         amount = request.form.get('amount')
         message = request.form.get('message')
         index = blockchain.add_transaction(sender, receiver, amount, message, "ui-test")
-        response = {'message': f'Transaction will be added to Block index: {index}'}
+        response = {'message': f'Transaction will be added to Block index: {index}+'}
     if request.form.get('add_and_mint'):
         sender = request.form.get('sender')
         if sender == "":
-            sender = f'{request.user_agent.browser}_{uuid_string}'
+            sender = f'{request.user_agent.browser}_{uuid_string}_{PORT}'
         receiver = request.form.get('receiver')
         amount = request.form.get('amount')
         message = request.form.get('message')
@@ -144,7 +144,7 @@ def add_transaction():
     else:
         node_address = f'{hostname}_{uuid_string}_{PORT}'
         index = blockchain.add_transaction(node_address, json['receiver'], json['amount'], json['message'], "iso")
-    response = {'message': f'Transaction will be added to Block index: {index}'}
+    response = {'message': f'Transaction will be added to Block index: {index}+'}
     return jsonify(response), 201
 
 @app.route('/connect_node', methods = ['POST'])
