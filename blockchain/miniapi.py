@@ -118,7 +118,7 @@ def _add_transaction():
         amount = request.form.get('amount')
         message = request.form.get('message')
         index = blockchain.add_transaction(sender, receiver, amount, message, "ui-test")
-        response = {'message': f'Transaction will added to Block index: {index}'}
+        response = {'message': f'Transaction will be added to Block index: {index}'}
     if request.form.get('add_and_mint'):
         sender = request.form.get('sender')
         if sender == "":
