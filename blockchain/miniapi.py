@@ -13,11 +13,12 @@ app = Flask(__name__)
 #app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
 app.config['JSON_SORT_KEYS'] = True
 
-blockchain = miniblock.Blockchain()
+PORT = sys.argv[1]
+blockchain = miniblock.Blockchain(PORT)
 
 hostname = socket.gethostname()
 uuid_string = str(uuid4()).replace('-', '')
-PORT = sys.argv[1]
+
 
 @app.route('/replace_chain', methods = ['GET'])
 def replace_chain():
@@ -49,9 +50,9 @@ def _replace_chain():
     reward = blockchain.calculate_reward(previous_tstamp, this_time, transactions_count)
     _message = "This is a reward transaction for minting a block!"
     if request.user_agent.browser:
-        node_address = f'{request.user_agent.browser}_{uuid_string}'
+        node_address = f'{request.user_agent.browser}_{uuid_string}_{PORT}'
     else:
-        node_address = f'{hostname}_{uuid_string}'
+        node_address = f'{hostname}_{uuid_string}_{PORT}'
     blockchain.add_transaction(sender = node_address, receiver = "Elisa", amount = reward, message = _message, type = "reward")
     block = blockchain.create_block(previous_hash)
 
@@ -92,6 +93,10 @@ def is_valid():
         }
     return jsonify(response), 200
 
+@app.route('/info')
+def hello():
+    return 'Hello, world! running on %s' % request.host
+
 @app.route("/")
 def home():
     return render_template('add_transaction.html')
@@ -107,24 +112,22 @@ def _add_transaction():
     response = None
     if request.form.get('add_transaction'):
         sender = request.form.get('sender')
-        print(sender)
         if sender == "":
-            sender = f'{request.user_agent.browser}_{uuid_string}'
+            sender = f'{request.user_agent.browser}_{uuid_string}_{PORT}'
         receiver = request.form.get('receiver')
         amount = request.form.get('amount')
         message = request.form.get('message')
         index = blockchain.add_transaction(sender, receiver, amount, message, "ui-test")
-        response = {'message': f'Transaction will added to Block index: {index}'}
+        response = {'message': f'Transaction will be added to Block index: {index}+'}
     if request.form.get('add_and_mint'):
         sender = request.form.get('sender')
-        print(sender)
         if sender == "":
-            sender = f'{request.user_agent.browser}_{uuid_string}'
+            sender = f'{request.user_agent.browser}_{uuid_string}_{PORT}'
         receiver = request.form.get('receiver')
         amount = request.form.get('amount')
         message = request.form.get('message')
         index = blockchain.add_transaction(sender, receiver, amount, message, "ui-test")
-        response = {'message': f'Transaction added, and Block minted with index: {index}'}
+        response = {'message': f'Transaction added, and Block minted with index: {index}+'}
         _replace_chain()
 
     #return redirect(url_for('_add_transaction')), 201
@@ -135,13 +138,13 @@ def add_transaction():
     json = request.get_json()
     transaction_keys = ['receiver', 'amount', 'message']
     if not all(key in json for key in transaction_keys):
-        return 'Elementos incorretos na transacao', 400
+        return 'Not correct elements in the transaction', 400
     if json.get('sender'):
         index = blockchain.add_transaction(json['sender'], json['receiver'], json['amount'], json['message'], "standard")
     else:
-        node_address = f'{hostname}_{uuid_string}'
+        node_address = f'{hostname}_{uuid_string}_{PORT}'
         index = blockchain.add_transaction(node_address, json['receiver'], json['amount'], json['message'], "iso")
-    response = {'message': f'Transaction will be added to Block index: {index}'}
+    response = {'message': f'Transaction will be added to Block index: {index}+'}
     return jsonify(response), 201
 
 @app.route('/connect_node', methods = ['POST'])
@@ -149,14 +152,25 @@ def connect_node():
     json = request.get_json()
     nodes = json.get('nodes')
     if nodes is None: 
-        return 'No hay nodos para añadir', 400
+        return 'No nodes to add', 400
     for node in nodes:
         blockchain.add_node(node)
-    response = {'message' : 'Todos los nodos han sido conectados. La cadena de Jbcoins contiene ahora los nodos siguientes: ',
+    response = {'message' : 'All nodes is now connected.',
                 'total_nodes': list(blockchain.nodes)}
     return jsonify(response), 201
 
-if __name__ == "__main__":
-    app.run(host = '0.0.0.0', port = PORT)
+@app.route('/latest_blocks', methods = ['GET'])
+def latest_blocks():
+    bchain = blockchain.chain
+    #response = {
+    #    'length': len(blockchain.chain)
+    #}
+    #response = {'message': 'oi'}
+    #return jsonify(response), 200
+    return render_template("latest_blocks.html", len = len(bchain), bchain = bchain)
 
+if __name__ == "__main__":
+    app.run(host = '0.0.0.0', port = PORT, debug=True)
+    #app.run(host = '0.0.0.0', port = PORT, debug=True, threaded=False)
+    #app.run(host='192.168.10.7', port= PORT, debug=True, threaded=False)
 

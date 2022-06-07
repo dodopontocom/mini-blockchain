@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Latest minted BLocks</title>
+<!--
+    <style>
+        ol {
+          counter-reset: item;
+        }
+        li {
+          display: block;
+          color: #666666;
+        }
+        li:before {
+          content: counters(item, ".") " ";
+          counter-increment: item;
+        }
+      </style>
+-->  
+</head>
+
+<body>
+<h1>Find latest Blocks</h1>
+
+<!--<ol style="transform: rotate(180deg);"> -->
+<ol style="display: block; color: #666666;">
+    <!-- For loop logic of jinja template -->
+
+    {%for i in range(0, len)%}
+        <!--<li style="background: rgb(156, 147, 147); transform: rotate(-180deg);">{{bchain[i]['hash']}}</li> -->
+        <li>{{bchain[i]['hash']}}
+            <ul>
+                <li>
+                    previous hash: {{bchain[i]['previous_hash']}}
+                </li>
+            </ul>
+        </li>
+    {%endfor%}
+      
+</ol>
+
+</body>
+</html>
