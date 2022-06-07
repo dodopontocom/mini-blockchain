@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Latest minted BLocks</title>
+</head>
+<body>
+<h1>Find latest Blocks</h1>
+
+<ol reversed>
+    <!-- For loop logic of jinja template -->
+    {%for i in range(0, len)%}
+        <li>{{bchain[i]['hash']}}</li>
+    {%endfor%}
+      
+</ol>
+
+</body>
+</html>
