@@ -13,11 +13,12 @@ app = Flask(__name__)
 #app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
 app.config['JSON_SORT_KEYS'] = True
 
-blockchain = miniblock.Blockchain()
+PORT = sys.argv[1]
+blockchain = miniblock.Blockchain(PORT)
 
 hostname = socket.gethostname()
 uuid_string = str(uuid4()).replace('-', '')
-PORT = sys.argv[1]
+
 
 @app.route('/replace_chain', methods = ['GET'])
 def replace_chain():
@@ -49,9 +50,9 @@ def _replace_chain():
     reward = blockchain.calculate_reward(previous_tstamp, this_time, transactions_count)
     _message = "This is a reward transaction for minting a block!"
     if request.user_agent.browser:
-        node_address = f'{request.user_agent.browser}_{uuid_string}'
+        node_address = f'{request.user_agent.browser}_{uuid_string}_{PORT}'
     else:
-        node_address = f'{hostname}_{uuid_string}'
+        node_address = f'{hostname}_{uuid_string}_{PORT}'
     blockchain.add_transaction(sender = node_address, receiver = "Elisa", amount = reward, message = _message, type = "reward")
     block = blockchain.create_block(previous_hash)
 
@@ -91,6 +92,10 @@ def is_valid():
             'message': "Problem!"
         }
     return jsonify(response), 200
+
+@app.route('/info')
+def hello():
+    return 'Hello, world! running on %s' % request.host
 
 @app.route("/")
 def home():
@@ -137,7 +142,7 @@ def add_transaction():
     if json.get('sender'):
         index = blockchain.add_transaction(json['sender'], json['receiver'], json['amount'], json['message'], "standard")
     else:
-        node_address = f'{hostname}_{uuid_string}'
+        node_address = f'{hostname}_{uuid_string}_{PORT}'
         index = blockchain.add_transaction(node_address, json['receiver'], json['amount'], json['message'], "iso")
     response = {'message': f'Transaction will be added to Block index: {index}'}
     return jsonify(response), 201
