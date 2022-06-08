@@ -6,10 +6,6 @@ from _global import uri
 
 node = '127.0.0.1:5000'
 
-#username = 'miniblockchain'
-#password = 'UOhr8kMhsnVhn9ij'
-#cluster = 'blockstorage'
-#uri = f"mongodb+srv://{username}:{password}@{cluster}.zxn61de.mongodb.net/?retryWrites=true&w=majority"
 client = pymongo.MongoClient(uri)
 
 mydb = client["testblockchain"]
