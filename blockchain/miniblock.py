@@ -31,9 +31,22 @@ class Blockchain:
 
         print("nodes: " + str(list(self.nodes)))
         ##########################################
-        if not self.replace_chain():
+
+        if _global._has_collection(name = _global.collection_name):
+            print("database has blocks previously added")
+            cursor = _global.client[_global.db_name][_global.collection_name].find({}, {"_id": 0})
+            #cursor = _global.client[_global.db_name][_global.collection_name].find({})
+            for document in cursor:
+                self.add_from_db(block = document)
+        elif not self.replace_chain():
+            print("nao pode entrar aqui")
             self.create_block(previous_hash = "big_bang_minus_one")
     
+    def add_from_db(self, block):
+        self.block = block
+        self.chain.append(block)
+        return block
+
     def create_block(self, previous_hash):
         block = {
             'era': _global.ERA,
@@ -128,7 +141,7 @@ class Blockchain:
                             max_length = length
                             longest_chain = chain
                 except requests.exceptions.ConnectionError:
-                    print("except: status code different from 200, probably nodes in the list are not online!")
+                    print("except from miniblock: status code different from 200, probably nodes in the list are not online!")
                     pass
         if longest_chain: 
             self.chain = longest_chain
