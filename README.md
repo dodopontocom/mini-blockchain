@@ -6,6 +6,10 @@ dependencies
 `$ sudo apt-get install jq curl`  
 (also install python3xxx)
 
+environment variable dependencies  
+`export (blockchain/env-vars-template.sh) appending to your ~/.bashrc`  
+edit the values accordingly
+
 run blockchain (if you change port number here, dont forget to also change in `nodes.json` file for the localhost server, default is `5000`)  
 `$ cd mini-blockchain/blockchain`  
 `$ PORT=5000 ./miniapi.py ${PORT}`

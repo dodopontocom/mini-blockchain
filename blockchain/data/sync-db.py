@@ -3,17 +3,17 @@
 import pymongo, requests
 from urllib.parse import quote_plus
 from _global import uri
+import sys
 
-node = '127.0.0.1:5000'
+PORT = sys.argv[1]
+node = f'127.0.0.1:{PORT}'
 
 client = pymongo.MongoClient(uri)
-
 mydb = client["testblockchain"]
 mycol = mydb["blocks"]
 
 def _has_collection(name):
     db = client['testblockchain']
-    list_of_collections = db.list_collection_names()
     return name in db.list_collection_names()
 
 if not _has_collection(name = "blocks"):
@@ -25,7 +25,6 @@ if not _has_collection(name = "blocks"):
             block_chain = chain.json()['chain']
             x = mycol.insert_one(block_chain[0])
             #print(mydb.list_collection_names())
-            
     except requests.exceptions.ConnectionError:
         print("except: status code different from 200, probably nodes in the list are not online!")
 
@@ -44,10 +43,9 @@ try:
             print(f'database is synced: {_to_add} index to add.')
         else:
             while _to_add_list < length:
-                print('adding index:' + str(block_chain[_to_add_list]['index']))
+                print('adding index: ' + str(block_chain[_to_add_list]['index']))
                 x = mycol.insert_one(block_chain[_to_add_list])
                 _to_add_list += 1
             print(f'database is synced: {_to_add_list} index.')
-
 except requests.exceptions.ConnectionError:
     print("except: status code different from 200, probably nodes in the list are not online!")
