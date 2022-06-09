@@ -170,7 +170,7 @@ def latest_blocks():
     return render_template("latest_blocks.html", len = len(bchain), bchain = bchain)
 
 if __name__ == "__main__":
-    app.run(host = '0.0.0.0', port = PORT, debug=True)
+    app.run(host = '0.0.0.0', port = PORT)
     #app.run(host = '0.0.0.0', port = PORT, debug=True, threaded=False)
     #app.run(host='192.168.10.7', port= PORT, debug=True, threaded=False)
 

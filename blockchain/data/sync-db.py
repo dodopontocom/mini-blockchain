@@ -8,8 +8,8 @@ import sys
 PORT = sys.argv[1]
 node = f'127.0.0.1:{PORT}'
 
-#client = pymongo.MongoClient(_global.uri)
-mydb = _global.client[_global.db_name]
+client = _global.return_conn()
+mydb = client[_global.db_name]
 mycol = mydb[_global.collection_name]
 
 def _get_chain():
@@ -24,7 +24,8 @@ def _get_chain():
         return "0", "0"
 
 def add_block_db(*args):
-    result = _global.client[_global.db_name][_global.collection_name].find()
+    #result = client[_global.db_name][_global.collection_name].find()
+    result = _global._return_collection_with_id(_global.db_name, _global.collection_name)
     index = None
     for i in result:
         index = i['index']

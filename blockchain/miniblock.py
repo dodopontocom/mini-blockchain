@@ -19,29 +19,30 @@ class Blockchain:
         self.nodes = set()
         
         ##########################################
-        #TODO make it as function!!!
-        #self.connect_nodes
-        f = open('nodes.json')
-        data = json.load(f)
-        for (v) in data['nodes']:
-            if v is None:
-                return "No nodes to add"
-            parsed_url = urlparse(str(v))
-            self.nodes.add(parsed_url.netloc)
-
-        print("nodes: " + str(list(self.nodes)))
+        self.connect_nodes()
         ##########################################
 
         if _global._has_collection(name = _global.collection_name):
             print("database has blocks previously added")
-            cursor = _global.client[_global.db_name][_global.collection_name].find({}, {"_id": 0})
-            #cursor = _global.client[_global.db_name][_global.collection_name].find({})
+            cursor = _global._return_collection_no_id(_global.db_name, _global.collection_name)
+            print("Retrieving blockchain from MongoDB...")
             for document in cursor:
                 self.add_from_db(block = document)
         elif not self.replace_chain():
-            print("nao pode entrar aqui")
             self.create_block(previous_hash = "big_bang_minus_one")
     
+    def connect_nodes(self):
+        f = open('nodes.json')
+        data = json.load(f)
+        port = self.port
+        for (v) in data['nodes']:
+            if v is None:
+                return "No nodes to add"
+            if v.split(":")[2] != port:
+                parsed_url = urlparse(str(v))
+                self.nodes.add(parsed_url.netloc)
+        print("nodes: " + str(list(self.nodes)))
+
     def add_from_db(self, block):
         self.block = block
         self.chain.append(block)
