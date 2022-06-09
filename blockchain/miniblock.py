@@ -148,16 +148,14 @@ class Blockchain:
             return True
         return False
 
-    #TODO come out with a more elaborate reward calculation
-    # (done) also calculate using number of transactions in a block, the more the more reward
-    def calculate_reward(self, previous_block_tstamp, just_mined_block_tstamp, transactions_count):
-        if transactions_count > 50:
-            good = 50.0
-            ok = 22.0
+    def calculate_reward(self, previous_block_tstamp, just_minted_block_tstamp, transactions_count):
+        if transactions_count > _global.high_transaction_count:
+            good = _global.high_transaction_count_good_reward
+            ok = _global.high_transaction_count_ok_reward
         else:
-            good = 10.0
-            ok = 6.5
-        if (int(just_mined_block_tstamp) - int(previous_block_tstamp)) < 400:
+            good = _global.good_reward
+            ok = _global.ok_reward
+        if (int(just_minted_block_tstamp) - int(previous_block_tstamp)) < _global.proof_speed:
             return str(good)
         else:
             return str(ok)
@@ -172,5 +170,3 @@ class Blockchain:
         return str(round(float(amount) * float(0.18)/float(100),3))
 
     #TODO how to create json for multiple transactions and add them accordly
-
-    #TODO the current global variable must come from configuration/definitions separated file!

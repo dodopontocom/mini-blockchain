@@ -10,6 +10,13 @@ GENESIS_HASH = str(uuid4()).replace('-', '')
 SECRET_KEY = "sometextheretogeneraterandomsecret".encode()
 AUTH_SIZE = 32
 
+high_transaction_count = 50
+proof_speed = 400
+good_reward = 10.0
+ok_reward = 6.5
+high_transaction_count_good_reward = 50.0
+high_transaction_count_ok_reward = 22.0
+
 uri = os.environ['MONGO_CONN_STRING']
 db_name = "testblockchain"
 collection_name = "blocks"
