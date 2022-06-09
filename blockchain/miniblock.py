@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import time
+from datetime import datetime
 import hashlib
 import json
 from urllib.parse import urlparse
@@ -29,6 +30,7 @@ class Blockchain:
             for document in cursor:
                 self.add_from_db(block = document)
         elif not self.replace_chain():
+            print("Let there be Block!!! Creating Genesis Block!!!")
             self.create_block(previous_hash = "big_bang_minus_one")
     
     def connect_nodes(self):
@@ -54,6 +56,7 @@ class Blockchain:
             'index': len(self.chain) + 1,
             'previous_hash': previous_hash,
             'timestamp': str(round(time.time())),
+            'timestamp_pretty': str(datetime.fromtimestamp(round(time.time())).utcnow()).split('.')[0] + "Z",
             'transactions_count': len(self.transactions),
             'transactions': self.transactions,
         }
@@ -116,7 +119,8 @@ class Blockchain:
                 'message': message,
                 'fee': fee,
                 'type': type,
-                't_timestamp': str(round(time.time()))
+                't_timestamp': str(round(time.time())),
+                't_timestamp_pretty': str(datetime.fromtimestamp(round(time.time())).utcnow()).split('.')[0] + "Z"
             }
         )
         previous_block = self.get_previous_block()
