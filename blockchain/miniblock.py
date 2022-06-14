@@ -32,10 +32,11 @@ class Blockchain:
         elif not self.replace_chain():
             print("Let there be Block!!! Creating Genesis Block!!!")
             self.create_block(previous_hash = "big_bang_minus_one")
-    
+
     def connect_nodes(self):
-        f = open('nodes.json')
+        f = open("/home/rodolfo/git/mini-blockchain/blockchain/nodes.json")
         data = json.load(f)
+
         port = self.port
         for (v) in data['nodes']:
             if v is None:
@@ -105,25 +106,34 @@ class Blockchain:
             block_index += 1
         return True
 
-    def add_transaction(self, sender, receiver, amount, message, type):
-        
+    def add_transaction(self, sender, receiver, amount, message, type, index_ref):
+
+        t_timestamp = str(round(time.time())),
+        tx = blake2b(digest_size=_global.AUTH_SIZE, key=_global.SECRET_KEY)
+        to_hex = f'{message}_{t_timestamp}'
+        tx.update((to_hex).encode())
+        transaction_blake2b = tx.hexdigest()
+
+        #TODO: better add index_ref
+        previous_block = self.get_previous_block()
         if type != "reward":
             fee = self.calculate_fee(amount)
         else:
             fee = 0.0
         self.transactions.append(
             {
+                'transaction_blake2b': transaction_blake2b,
                 'sender': sender,
                 'receiver': receiver, 
                 'amount': amount,
+                'index_ref': index_ref,
                 'message': message,
                 'fee': fee,
                 'type': type,
-                't_timestamp': str(round(time.time())),
+                't_timestamp': t_timestamp,
                 't_timestamp_pretty': str(datetime.fromtimestamp(round(time.time())).utcnow()).split('.')[0] + "Z"
             }
         )
-        previous_block = self.get_previous_block()
         return previous_block['index'] + 1
     
     def add_node(self, address):

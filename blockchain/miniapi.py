@@ -53,9 +53,10 @@ def _replace_chain():
         node_address = f'{request.user_agent.browser}_{uuid_string}_{PORT}'
     else:
         node_address = f'{hostname}_{uuid_string}_{PORT}'
-    blockchain.add_transaction(sender = node_address, receiver = "Elisa", amount = reward, message = _message, type = "reward")
-    block = blockchain.create_block(previous_hash)
 
+    block = blockchain.create_block(previous_hash)
+    blockchain.add_transaction(sender = node_address, receiver = "Elisa", amount = reward, message = _message, type = "reward", index_ref = block['index'])
+    
     response = {
         'message': "Congratulation! You've mined a Block",
         'era': block['era'],
@@ -65,6 +66,7 @@ def _replace_chain():
         'time_to_proof': block['time_to_proof'],
         'previous_hash': block['previous_hash'],
         'timestamp': block['timestamp'],
+        'timestamp_pretty': block['timestamp_pretty'],
         'transactions_count': block['transactions_count'],
         'transactions': block['transactions'],
         'blake2b': block['blake2b']
@@ -117,7 +119,7 @@ def _add_transaction():
         receiver = request.form.get('receiver')
         amount = request.form.get('amount')
         message = request.form.get('message')
-        index = blockchain.add_transaction(sender, receiver, amount, message, "ui-test")
+        index = blockchain.add_transaction(sender, receiver, amount, message, "ui-test", "self")
         response = {'message': f'Transaction will be added to Block index: {index}+'}
     if request.form.get('add_and_mint'):
         sender = request.form.get('sender')
@@ -126,7 +128,7 @@ def _add_transaction():
         receiver = request.form.get('receiver')
         amount = request.form.get('amount')
         message = request.form.get('message')
-        index = blockchain.add_transaction(sender, receiver, amount, message, "ui-test")
+        index = blockchain.add_transaction(sender, receiver, amount, message, "ui-test", "self")
         response = {'message': f'Transaction added, and Block minted with index: {index}+'}
         _replace_chain()
 
@@ -140,10 +142,10 @@ def add_transaction():
     if not all(key in json for key in transaction_keys):
         return 'Not correct elements in the transaction', 400
     if json.get('sender'):
-        index = blockchain.add_transaction(json['sender'], json['receiver'], json['amount'], json['message'], "standard")
+        index = blockchain.add_transaction(json['sender'], json['receiver'], json['amount'], json['message'], "standard", "self")
     else:
         node_address = f'{hostname}_{uuid_string}_{PORT}'
-        index = blockchain.add_transaction(node_address, json['receiver'], json['amount'], json['message'], "iso")
+        index = blockchain.add_transaction(node_address, json['receiver'], json['amount'], json['message'], "iso", "self")
     response = {'message': f'Transaction will be added to Block index: {index}+'}
     return jsonify(response), 201
 
