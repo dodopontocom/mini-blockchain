@@ -103,6 +103,11 @@ def hello():
 def home():
     return render_template('add_transaction.html')
 
+@app.route("/get_by_index")
+def get_by_index():
+    bchain = blockchain.chain
+    return render_template("get_by_index.html", len = len(bchain), bchain = bchain)
+
 @app.route("/mint_a_block")
 def _home():
     return render_template('mint_a_block.html')

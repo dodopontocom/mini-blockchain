@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Get Block by its index</title>
+
+</head>
+
+<body>
+<h1>Get Block by its index</h1>
+
+<label>Select the block index number</label>
+<select onchange="_val(this)" id="index" name="index">
+  {% for ind in range(0, len)%}
+    
+    <option value="{{bchain[ind]}}" SELECTED>choose index -> {{bchain[ind]['index']}}</option>"
+  {% endfor %}
+</select>
+
+<p id="index-binding"></p>
+
+<script>
+  var pTag = document.getElementById('index-binding')
+  function _val(selectObject) {
+    var value = selectObject.value;  
+    console.log(value);
+    pTag.innerText = selectObject.value
+    document.getElementById("json_index").innerHTML = JSON.stringify([value, null, 6]);
+  }
+</script>
+
+<pre id="json_index" ></pre>
+
+</body>
+</html>
+
+  
