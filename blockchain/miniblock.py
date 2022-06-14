@@ -34,7 +34,7 @@ class Blockchain:
             self.create_block(previous_hash = "big_bang_minus_one")
 
     def connect_nodes(self):
-        f = open("/home/rodolfo/git/mini-blockchain/blockchain/nodes.json")
+        f = open('nodes.json')
         data = json.load(f)
 
         port = self.port
