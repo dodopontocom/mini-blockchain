@@ -8,6 +8,11 @@ import time
 import sys
 import socket
 import _global
+import subprocess
+
+startTime = time.time()
+def getUptime():
+    return round(time.time() - startTime)
 
 app = Flask(__name__)
 #app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
@@ -97,7 +102,11 @@ def is_valid():
 
 @app.route('/info')
 def hello():
-    return 'Hello, world! running on %s' % request.host
+    uptime = getUptime()
+    command = 'git rev-parse --abbrev-ref HEAD'.split()
+    branch = subprocess.Popen(command, stdout=subprocess.PIPE).stdout.read().decode().split("\n")[0]
+    branch
+    return render_template('info_page.html', host = request.host, branch = branch, uptime = uptime)
 
 @app.route("/")
 def home():

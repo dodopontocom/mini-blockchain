@@ -32,7 +32,7 @@
     document.getElementById("hash").innerHTML = value.split("'hash': '")[1].split("'")[0];
     document.getElementById("timestamp").innerHTML = value.split("'timestamp_pretty': '")[1].split("'")[0];
     document.getElementById("t_to_proove").innerHTML = value.split("'time_to_proof': ")[1].split(",")[0];
-    document.getElementById("tx_count").innerHTML = value.split("transactions_count': ")[1].split("}")[0];
+    document.getElementById("tx_count").innerHTML = value.split("transactions_count': ")[1].split("}")[0].split(",")[0];
     //document.getElementById("json_index").innerHTML = JSON.stringify(value, null, 6);
   }
 </script>
