@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Get Block by its index</title>
+
+</head>
+<style>
+  textarea {
+    resize: none;
+  }
+</style>
+<body>
+<h1>Get Block by its index</h1>
+
+<label>Select the block index number</label>
+<select onchange="_val(this)" id="index" name="index">
+  {% for ind in range(0, len)%}
+    <option value='{{bchain[ind]}}' SELECTED>choose index -> {{bchain[ind]['index']}}</option>"
+  {% endfor %}
+</select>
+
+<!-- <p id="index-binding"></p> -->
+
+<script>
+  //var pTag = document.getElementById('index-binding')
+  function _val(selectObject) {
+    var value = selectObject.value;
+    //console.log(value);
+    //pTag.innerText = selectObject.value
+    document.getElementById("hash").innerHTML = value.split("'hash': '")[1].split("'")[0];
+    document.getElementById("timestamp").innerHTML = value.split("'timestamp_pretty': '")[1].split("'")[0];
+    document.getElementById("t_to_proove").innerHTML = value.split("'time_to_proof': ")[1].split(",")[0];
+    document.getElementById("tx_count").innerHTML = value.split("transactions_count': ")[1].split("}")[0].split(",")[0];
+    document.getElementById("tx_count").innerHTML = value.split("transactions_count': ")[1].split("}")[0].split(",")[0];
+    var jaison = JSON.stringify(value)
+    if (console.log(jaison.split("'type': ")[1].split("}")[0]) === "'iso'") {
+      console.log("ok")
+    }
+    //var node = jaison
+    //console.log(node);
+    //document.getElementById("test").innerHTML = node;
+    //.chain[].transactions[]  | select(.fee == 0).sender,.amount
+  }
+</script>
+<hr>
+<label>Hash: 
+  <textarea cols="75" disabled=True id="hash" ></textarea>
+</label></br>
+<label>Timestamp: 
+  <textarea cols="20" disabled=True id="timestamp" ></textarea>
+</label></br>
+<label>Time to proof: 
+  <textarea cols="20" disabled=True id="t_to_proove" ></textarea>
+</label> in seconds</br>
+<label>Number of Transactions: 
+  <textarea cols="20" disabled=True id="tx_count" ></textarea>
+</label>
+</br>
+</hr>
+<label>Test: 
+  <textarea cols="120" resize=True id="test" ></textarea>
+
+</body>
+</html>
+
+  

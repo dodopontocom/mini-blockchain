@@ -21,7 +21,20 @@ uri = os.environ['MONGO_CONN_STRING']
 db_name = "testblockchain"
 collection_name = "blocks"
 
-client = pymongo.MongoClient(uri)
+#client = pymongo.MongoClient(uri)
 def _has_collection(name):
+    client = pymongo.MongoClient(uri)
     db = client[db_name]
     return name in db.list_collection_names()
+
+def _return_collection_no_id(db, coll):
+    client = pymongo.MongoClient(uri)
+    return client[db][coll].find({}, {"_id": 0})
+
+def _return_collection_with_id(db, coll):
+    client = pymongo.MongoClient(uri)
+    return client[db][coll].find({})
+
+def return_conn():
+    return pymongo.MongoClient(uri)
+
