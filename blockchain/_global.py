@@ -33,7 +33,7 @@ def _return_collection_no_id(db, coll):
 
 def _return_collection_with_id(db, coll):
     client = pymongo.MongoClient(uri)
-    return client[db][coll].find({}, {"_id": 0})
+    return client[db][coll].find({})
 
 def return_conn():
     return pymongo.MongoClient(uri)
