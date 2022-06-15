@@ -17,7 +17,7 @@
 <label>Select the block index number</label>
 <select onchange="_val(this)" id="index" name="index">
   {% for ind in range(0, len)%}
-    <option value="{{bchain[ind]}}" SELECTED>choose index -> {{bchain[ind]['index']}}</option>"
+    <option value='{{bchain[ind]}}' SELECTED>choose index -> {{bchain[ind]['index']}}</option>"
   {% endfor %}
 </select>
 
@@ -27,13 +27,21 @@
   //var pTag = document.getElementById('index-binding')
   function _val(selectObject) {
     var value = selectObject.value;
-    console.log(value);
+    //console.log(value);
     //pTag.innerText = selectObject.value
     document.getElementById("hash").innerHTML = value.split("'hash': '")[1].split("'")[0];
     document.getElementById("timestamp").innerHTML = value.split("'timestamp_pretty': '")[1].split("'")[0];
     document.getElementById("t_to_proove").innerHTML = value.split("'time_to_proof': ")[1].split(",")[0];
     document.getElementById("tx_count").innerHTML = value.split("transactions_count': ")[1].split("}")[0].split(",")[0];
-    //document.getElementById("json_index").innerHTML = JSON.stringify(value, null, 6);
+    document.getElementById("tx_count").innerHTML = value.split("transactions_count': ")[1].split("}")[0].split(",")[0];
+    var jaison = JSON.stringify(value)
+    if (console.log(jaison.split("'type': ")[1].split("}")[0]) === "'iso'") {
+      console.log("ok")
+    }
+    //var node = jaison
+    //console.log(node);
+    //document.getElementById("test").innerHTML = node;
+    //.chain[].transactions[]  | select(.fee == 0).sender,.amount
   }
 </script>
 <hr>
@@ -49,6 +57,10 @@
 <label>Number of Transactions: 
   <textarea cols="20" disabled=True id="tx_count" ></textarea>
 </label>
+</br>
+</hr>
+<label>Test: 
+  <textarea cols="120" resize=True id="test" ></textarea>
 
 </body>
 </html>

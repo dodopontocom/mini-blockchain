@@ -34,11 +34,11 @@ class Blockchain:
             self.create_block(previous_hash = "big_bang_minus_one")
 
     def connect_nodes(self):
-        f = open('nodes.json')
+        f = open("nodes.json")
         data = json.load(f)
 
         port = self.port
-        for (v) in data['nodes']:
+        for (v) in data["nodes"]:
             if v is None:
                 return "No nodes to add"
             if v.split(":")[2] != port:
@@ -53,13 +53,13 @@ class Blockchain:
 
     def create_block(self, previous_hash):
         block = {
-            'era': _global.ERA,
-            'index': len(self.chain) + 1,
-            'previous_hash': previous_hash,
-            'timestamp': str(round(time.time())),
-            'timestamp_pretty': str(datetime.fromtimestamp(round(time.time())).utcnow()).split('.')[0] + "Z",
-            'transactions_count': len(self.transactions),
-            'transactions': self.transactions,
+            "era": _global.ERA,
+            "index": len(self.chain) + 1,
+            "previous_hash": previous_hash,
+            "timestamp": str(round(time.time())),
+            "timestamp_pretty": str(datetime.fromtimestamp(round(time.time())).utcnow()).split(".")[0] + "Z",
+            "transactions_count": len(self.transactions),
+            "transactions": self.transactions,
         }
         self.transactions = []
         self.chain.append(self.hash("sha", block))
@@ -74,18 +74,18 @@ class Blockchain:
         init_proof = time.time()
         if type == "sha":
             while check_proof is False:
-                block['proof'] = new_proof
+                block["proof"] = new_proof
                 hash = hashlib.sha256(json.dumps(block).encode()).hexdigest()
                 if hash[:len(_global.ZEROS)] == _global.ZEROS:
                     check_proof = True
                     done_proof = time.time()
-                    block['hash'] = hash
-                    block['proof'] = new_proof
-                    block['time_to_proof'] = round((done_proof - init_proof),10)
+                    block["hash"] = hash
+                    block["proof"] = new_proof
+                    block["time_to_proof"] = round((done_proof - init_proof),10)
 
                     h = blake2b(digest_size=_global.AUTH_SIZE, key=_global.SECRET_KEY)
                     h.update(json.dumps(block).encode())
-                    block['blake2b'] = h.hexdigest()
+                    block["blake2b"] = h.hexdigest()
                 else:
                     new_proof += 1
         return block
@@ -95,10 +95,10 @@ class Blockchain:
         block_index = 1
         while block_index < len(chain):
             block = chain[block_index]
-            if block['previous_hash'] != previous_block['hash']:
+            if block["previous_hash"] != previous_block["hash"]:
                 return False
-            #previous_proof = previous_block['proof']
-            #proof = block['proof']
+            #previous_proof = previous_block["proof"]
+            #proof = block["proof"]
             #hash_operation = hashlib.sha256(json.dumps(block).encode()).hexdigest()
             #if hash_operation[:len(ZEROS)] != ZEROS:
             #    return False
@@ -110,7 +110,7 @@ class Blockchain:
 
         t_timestamp = str(round(time.time())),
         tx = blake2b(digest_size=_global.AUTH_SIZE, key=_global.SECRET_KEY)
-        to_hex = f'{message}_{t_timestamp}'
+        to_hex = f"{message}_{t_timestamp}"
         tx.update((to_hex).encode())
         transaction_blake2b = tx.hexdigest()
 
@@ -122,19 +122,19 @@ class Blockchain:
             fee = 0.0
         self.transactions.append(
             {
-                'transaction_blake2b': transaction_blake2b,
-                'sender': sender,
-                'receiver': receiver, 
-                'amount': amount,
-                'index_ref': index_ref,
-                'message': message,
-                'fee': fee,
-                'type': type,
-                't_timestamp': t_timestamp,
-                't_timestamp_pretty': str(datetime.fromtimestamp(round(time.time())).utcnow()).split('.')[0] + "Z"
+                "transaction_blake2b": transaction_blake2b,
+                "sender": sender,
+                "receiver": receiver, 
+                "amount": amount,
+                "index_ref": index_ref,
+                "message": message,
+                "fee": fee,
+                "type": type,
+                "t_timestamp": t_timestamp,
+                "t_timestamp_pretty": str(datetime.fromtimestamp(round(time.time())).utcnow()).split(".")[0] + "Z"
             }
         )
-        return previous_block['index'] + 1
+        return previous_block["index"] + 1
     
     def add_node(self, address):
         parsed_url = urlparse(address)
@@ -148,10 +148,10 @@ class Blockchain:
         for node in network:
             if node.split(":")[1] != port:
                 try:
-                    response = requests.get(f'http://{node}/get_chain')
+                    response = requests.get(f"http://{node}/get_chain")
                     if response.status_code == 200:
-                        length = response.json()['length']
-                        chain = response.json()['chain']
+                        length = response.json()["length"]
+                        chain = response.json()["chain"]
                         if length > max_length and self.is_chain_valid(chain):
                             max_length = length
                             longest_chain = chain
