@@ -108,7 +108,7 @@ class Blockchain:
 
     def add_transaction(self, sender, receiver, amount, message, type, index_ref):
 
-        t_timestamp = str(round(time.time())),
+        t_timestamp = str(round(time.time()))
         tx = blake2b(digest_size=_global.AUTH_SIZE, key=_global.SECRET_KEY)
         to_hex = f"{message}_{t_timestamp}"
         tx.update((to_hex).encode())
