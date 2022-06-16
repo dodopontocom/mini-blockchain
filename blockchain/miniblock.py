@@ -10,6 +10,8 @@ from uuid import uuid4
 from hashlib import blake2b
 import re
 import _global
+from hmac import compare_digest
+import cryptocode
 
 class Blockchain:
     
@@ -51,18 +53,30 @@ class Blockchain:
         self.chain.append(block)
         return block
 
+    def sign_blake2(self, cookie):
+        h = blake2b(digest_size=_global.AUTH_SIZE, key=_global.SECRET_KEY)
+        h.update(cookie)
+        return h.hexdigest()
+    def verify_disgest(self, cookie, sig):
+        good_sig = self.sign_blake2(cookie)
+        return compare_digest(good_sig, sig)
+
     def create_block(self, previous_hash):
-        block = {
-            "era": _global.ERA,
-            "index": len(self.chain) + 1,
-            "previous_hash": previous_hash,
-            "timestamp": str(round(time.time())),
-            "timestamp_pretty": str(datetime.fromtimestamp(round(time.time())).utcnow()).split(".")[0] + "Z",
-            "transactions_count": len(self.transactions),
-            "transactions": self.transactions,
-        }
-        self.transactions = []
-        self.chain.append(self.hash("sha", block))
+        cookie = json.dumps(self.transactions).encode('utf-8')
+        sig = self.sign_blake2(cookie)
+        tx_encoded = cryptocode.encrypt(str(cookie), _global.SECRET_KEY.decode())
+        if self.verify_disgest(json.dumps(self.transactions).encode(), sig):
+            block = {
+                "era": _global.ERA,
+                "index": len(self.chain) + 1,
+                "previous_hash": previous_hash,
+                "timestamp": str(round(time.time())),
+                "timestamp_pretty": str(datetime.fromtimestamp(round(time.time())).utcnow()).split(".")[0] + "Z",
+                "transactions_count": len(self.transactions),
+                "transactions_hash": tx_encoded,
+            }
+            self.transactions = []
+            self.chain.append(self.hash("sha", block))
         return block
 
     def get_previous_block(self):

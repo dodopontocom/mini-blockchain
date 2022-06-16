@@ -73,7 +73,7 @@ def _replace_chain():
         "timestamp": block["timestamp"],
         "timestamp_pretty": block["timestamp_pretty"],
         "transactions_count": block["transactions_count"],
-        "transactions": block["transactions"],
+        "transactions_hash": block["transactions_hash"],
         "blake2b": block["blake2b"]
     }
     return jsonify(_response, response), 200

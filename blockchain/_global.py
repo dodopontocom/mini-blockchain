@@ -7,7 +7,7 @@ import pymongo
 ERA = "mini"
 ZEROS = "0000"
 GENESIS_HASH = str(uuid4()).replace('-', '')
-SECRET_KEY = "sometextheretogeneraterandomsecret".encode()
+SECRET_KEY = "lifeisachessgame,youdontwanttowasteamove".encode()
 AUTH_SIZE = 32
 
 high_transaction_count = 50
