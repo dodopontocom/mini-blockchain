@@ -54,7 +54,7 @@ class Blockchain:
         return block
 
     def sign_blake2(self, cookie):
-        h = blake2b(digest_size=_global.AUTH_SIZE, key=_global.SECRET_KEY)
+        h = blake2b(digest_size=_global.AUTH_SIZE, key=_global.SECRET_KEY.encode())
         h.update(cookie)
         return h.hexdigest()
     def verify_disgest(self, cookie, sig):
@@ -64,7 +64,7 @@ class Blockchain:
     def create_block(self, previous_hash):
         cookie = json.dumps(self.transactions).encode('utf-8')
         sig = self.sign_blake2(cookie)
-        tx_encoded = cryptocode.encrypt(str(cookie), _global.SECRET_KEY.decode())
+        tx_encoded = cryptocode.encrypt(str(cookie), _global.SECRET_KEY)
         if self.verify_disgest(json.dumps(self.transactions).encode(), sig):
             block = {
                 "era": _global.ERA,
@@ -97,7 +97,7 @@ class Blockchain:
                     block["proof"] = new_proof
                     block["time_to_proof"] = round((done_proof - init_proof),10)
 
-                    h = blake2b(digest_size=_global.AUTH_SIZE, key=_global.SECRET_KEY)
+                    h = blake2b(digest_size=_global.AUTH_SIZE, key=_global.SECRET_KEY.encode())
                     h.update(json.dumps(block).encode())
                     block["blake2b"] = h.hexdigest()
                 else:
@@ -123,7 +123,7 @@ class Blockchain:
     def add_transaction(self, sender, receiver, amount, message, type, index_ref):
 
         t_timestamp = str(round(time.time()))
-        tx = blake2b(digest_size=_global.AUTH_SIZE, key=_global.SECRET_KEY)
+        tx = blake2b(digest_size=_global.AUTH_SIZE, key=_global.SECRET_KEY.encode())
         to_hex = f"{message}_{t_timestamp}"
         tx.update((to_hex).encode())
         transaction_blake2b = tx.hexdigest()
