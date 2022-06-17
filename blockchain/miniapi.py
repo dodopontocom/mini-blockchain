@@ -99,7 +99,7 @@ def is_valid():
 
 @app.route("/info")
 def hello():
-    uptime = getUptime()
+    uptime = _global.getUptime(startTime)
     command = "git rev-parse --abbrev-ref HEAD".split()
     branch = subprocess.Popen(command, stdout=subprocess.PIPE).stdout.read().decode().split("\n")[0]
     branch
