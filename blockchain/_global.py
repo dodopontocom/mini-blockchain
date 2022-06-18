@@ -38,3 +38,5 @@ def _return_collection_with_id(db, coll):
 def return_conn():
     return pymongo.MongoClient(uri)
 
+def getUptime(startTime):
+    return round(time.time() - startTime)

@@ -11,8 +11,6 @@ import _global
 import subprocess
 
 startTime = time.time()
-def getUptime():
-    return round(time.time() - startTime)
 
 app = Flask(__name__)
 #app.config["JSONIFY_PRETTYPRINT_REGULAR"] = False
@@ -23,7 +21,6 @@ blockchain = miniblock.Blockchain(PORT)
 
 hostname = socket.gethostname()
 uuid_string = str(uuid4()).replace("-", "")
-
 
 @app.route("/replace_chain", methods = ["GET"])
 def replace_chain():
@@ -102,7 +99,7 @@ def is_valid():
 
 @app.route("/info")
 def hello():
-    uptime = getUptime()
+    uptime = _global.getUptime(startTime)
     command = "git rev-parse --abbrev-ref HEAD".split()
     branch = subprocess.Popen(command, stdout=subprocess.PIPE).stdout.read().decode().split("\n")[0]
     branch
@@ -120,7 +117,6 @@ def get_by_index():
 @app.route("/mint_a_block")
 def _home():
     return render_template("mint_a_block.html")
-
 
 @app.route("/_add_transaction", methods=["GET", "POST"])
 def _add_transaction():
@@ -188,5 +184,3 @@ def latest_blocks():
 if __name__ == "__main__":
     app.run(host = "0.0.0.0", port = PORT)
     #app.run(host = "0.0.0.0", port = PORT, debug=True, threaded=False)
-    #app.run(host="192.168.10.7", port= PORT, debug=True, threaded=False)
-
