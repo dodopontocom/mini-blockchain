@@ -2,7 +2,7 @@
 
 BASEDIR="$(cd $(dirname ${BASH_SOURCE[0]}) >/dev/null 2>&1 && pwd)"
 
-jsons=${BASEDIR}/..
+jsons=${BASEDIR}/../testing
 
 count=$1
 half=$(expr ${count} / 2)

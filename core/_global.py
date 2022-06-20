@@ -3,12 +3,20 @@
 from uuid import uuid4
 import os
 import pymongo
+import time
 
 ERA = "mini"
 ZEROS = "0000"
+TSUPPLY = 1_000_000_000_000
 GENESIS_HASH = str(uuid4()).replace('-', '')
 SECRET_KEY = "lifeisachessgame,youdontwanttowasteamove"
 AUTH_SIZE = 32
+
+W0_BALANCE = 120_000_000
+W1_BALANCE = 345
+W2_BALANCE = 560
+
+INIT_SUPPLY = (TSUPPLY - W0_BALANCE - W1_BALANCE - W2_BALANCE)
 
 high_transaction_count = 50
 proof_speed = 400

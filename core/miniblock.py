@@ -8,7 +8,6 @@ from urllib.parse import urlparse
 import requests
 from uuid import uuid4
 from hashlib import blake2b
-import re
 import _global
 from hmac import compare_digest
 import cryptocode
@@ -16,24 +15,38 @@ import cryptocode
 class Blockchain:
     
     def __init__(self, port):
+        self.total_supply = _global.TSUPPLY
+        self.initial_supply = _global.INIT_SUPPLY
         self.port = port
         self.chain = []
         self.transactions = []
         self.nodes = set()
         
         ##########################################
-        self.connect_nodes()
+        #print(__name__)
+        #self.connect_nodes()
         ##########################################
 
-        if _global._has_collection(name = _global.collection_name):
-            print("database has blocks previously added")
-            cursor = _global._return_collection_no_id(_global.db_name, _global.collection_name)
-            print("Retrieving blockchain from MongoDB...")
-            for document in cursor:
-                self.add_from_db(block = document)
-        elif not self.replace_chain():
-            print("Let there be Block!!! Creating Genesis Block!!!")
-            self.create_block(previous_hash = "big_bang_minus_one")
+        # if _global._has_collection(name = _global.collection_name):
+        #     print("database has blocks previously added")
+        #     cursor = _global._return_collection_no_id(_global.db_name, _global.collection_name)
+        #     print("Retrieving blockchain from MongoDB...")
+        #     for document in cursor:
+        #         self.add_from_db(block = document)
+        # elif not self.replace_chain():
+        print("Let there be Block!!! Creating Genesis Block!!!")
+        self.create_block(previous_hash = "big_bang_minus_one")
+    
+    def updated_supply_amount(self):
+        return "oi"
+
+    def subtract_supply(self, amount):
+        if self.initial_supply >= amount:
+            self.initial_supply = (self.initial_supply - amount)
+            return self.initial_supply
+        else:
+            return False
+        
 
     def connect_nodes(self):
         f = open("nodes.json")
@@ -73,7 +86,7 @@ class Blockchain:
                 "timestamp": str(round(time.time())),
                 "timestamp_pretty": str(datetime.fromtimestamp(round(time.time())).utcnow()).split(".")[0] + "Z",
                 "transactions_count": len(self.transactions),
-                "transactions_hash": tx_encoded,
+                "transactions_hash": self.transactions,
             }
             self.transactions = []
             self.chain.append(self.hash("sha", block))
@@ -120,35 +133,54 @@ class Blockchain:
             block_index += 1
         return True
 
+    def check_sender_balance(self, sender, amount, type):
+        print("function to verify before adding transaction")
+        response = requests.get("http://127.0.0.1:6500/get_wallets").text
+        r = json.loads(response)
+        print(f"------{type}")
+        for i in r['wallets']:
+            if (i['blake2b']=="axxxBC") or type == "reward":
+                return True
+            else:
+                return False
+        # sender is a valid wallet?
+        # fee = self.calculate_fee(amount) 
+        # if (sender.wallet['balance'] + fee) >= amount: return True
+        # else: return False
+
     def add_transaction(self, sender, receiver, amount, message, type, index_ref):
+        
+        if self.check_sender_balance(sender = sender, amount = amount, type = type):
 
-        t_timestamp = str(round(time.time()))
-        tx = blake2b(digest_size=_global.AUTH_SIZE, key=_global.SECRET_KEY.encode())
-        to_hex = f"{message}_{t_timestamp}"
-        tx.update((to_hex).encode())
-        transaction_blake2b = tx.hexdigest()
+            t_timestamp = str(round(time.time()))
+            tx = blake2b(digest_size=_global.AUTH_SIZE, key=_global.SECRET_KEY.encode())
+            to_hex = f"{message}_{t_timestamp}"
+            tx.update((to_hex).encode())
+            transaction_blake2b = tx.hexdigest()
 
-        #TODO: better add index_ref
-        previous_block = self.get_previous_block()
-        if type != "reward":
-            fee = self.calculate_fee(amount)
+            #TODO: better add index_ref
+            previous_block = self.get_previous_block()
+            if type != "reward":
+                fee = self.calculate_fee(amount)
+            else:
+                fee = 0.0
+            self.transactions.append(
+                {
+                    "transaction_blake2b": transaction_blake2b,
+                    "sender": sender,
+                    "receiver": receiver, 
+                    "amount": amount,
+                    "index_ref": index_ref,
+                    "message": message,
+                    "fee": fee,
+                    "type": type,
+                    "t_timestamp": t_timestamp,
+                    "t_timestamp_pretty": str(datetime.fromtimestamp(round(time.time())).utcnow()).split(".")[0] + "Z"
+                }
+            )
+            return previous_block["index"] + 1
         else:
-            fee = 0.0
-        self.transactions.append(
-            {
-                "transaction_blake2b": transaction_blake2b,
-                "sender": sender,
-                "receiver": receiver, 
-                "amount": amount,
-                "index_ref": index_ref,
-                "message": message,
-                "fee": fee,
-                "type": type,
-                "t_timestamp": t_timestamp,
-                "t_timestamp_pretty": str(datetime.fromtimestamp(round(time.time())).utcnow()).split(".")[0] + "Z"
-            }
-        )
-        return previous_block["index"] + 1
+            return False
     
     def add_node(self, address):
         parsed_url = urlparse(address)
