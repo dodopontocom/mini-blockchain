@@ -4,6 +4,7 @@ from flask import Flask, jsonify, request, session, redirect, url_for, render_te
 import wallet
 import os
 
+#template dir still not ok when call api from another directory
 template_dir = os.path.abspath('../../ui/templates/wallet')
 app = Flask(__name__, template_folder=template_dir)
 

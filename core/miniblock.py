@@ -39,7 +39,7 @@ class Blockchain:
     
     def updated_supply_amount(self):
         return "oi"
-
+    
     def subtract_supply(self, amount):
         if self.initial_supply >= amount:
             self.initial_supply = (self.initial_supply - amount)
@@ -133,24 +133,27 @@ class Blockchain:
             block_index += 1
         return True
 
-    def check_sender_balance(self, sender, amount, type):
+    def check_sender_balance(self, receiver, type):
         print("function to verify before adding transaction")
         response = requests.get("http://127.0.0.1:6500/get_wallets").text
         r = json.loads(response)
-        print(f"------{type}")
+
         for i in r['wallets']:
-            if (i['blake2b']=="axxxBC") or type == "reward":
+            if (i['blake2b']==receiver):
                 return True
-            else:
-                return False
-        # sender is a valid wallet?
+        if type == "reward":
+            return True
+        else:
+            return False
+        # sender(will be a node) is a valid?
+        # receiver is a valid wallet?
         # fee = self.calculate_fee(amount) 
         # if (sender.wallet['balance'] + fee) >= amount: return True
         # else: return False
 
     def add_transaction(self, sender, receiver, amount, message, type, index_ref):
         
-        if self.check_sender_balance(sender = sender, amount = amount, type = type):
+        if self.check_sender_balance(receiver = receiver, type = type):
 
             t_timestamp = str(round(time.time()))
             tx = blake2b(digest_size=_global.AUTH_SIZE, key=_global.SECRET_KEY.encode())
@@ -160,10 +163,10 @@ class Blockchain:
 
             #TODO: better add index_ref
             previous_block = self.get_previous_block()
-            if type != "reward":
-                fee = self.calculate_fee(amount)
-            else:
+            if type == "reward" or type == "iso" or type == "ico":
                 fee = 0.0
+            else:
+                fee = self.calculate_fee(amount)                
             self.transactions.append(
                 {
                     "transaction_blake2b": transaction_blake2b,

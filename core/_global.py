@@ -4,6 +4,8 @@ from uuid import uuid4
 import os
 import pymongo
 import time
+from hashlib import blake2b
+from hmac import compare_digest
 
 ERA = "mini"
 ZEROS = "0000"
@@ -48,3 +50,12 @@ def return_conn():
 
 def getUptime(startTime):
     return round(time.time() - startTime)
+
+def sign_blake2(self, cookie):
+        h = blake2b(digest_size=AUTH_SIZE, key=SECRET_KEY.encode())
+        h.update(cookie)
+        return h.hexdigest()
+
+def verify_disgest(self, cookie, sig):
+    good_sig = self.sign_blake2(cookie)
+    return compare_digest(good_sig, sig)

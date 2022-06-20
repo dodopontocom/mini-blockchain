@@ -164,13 +164,20 @@ def add_transaction():
     transaction_keys = ["receiver", "amount", "message"]
     if not all(key in json for key in transaction_keys):
         return "Not correct elements in the transaction", 400
+    if json.get("type"):
+        node_address = f"{hostname}_{uuid_string}_{PORT}"
+        index = blockchain.add_transaction(node_address, json["receiver"], json["amount"], json["message"], json["type"], "self")
+        if not index:
+            response = {"message": f"Transaction recused, No wallet found"}
+        else:
+            response = {"message": f"Transaction will be added to Block index: {index}+"}
     if json.get("sender"):
         index = blockchain.add_transaction(json["sender"], json["receiver"], json["amount"], json["message"], "standard", "self")
         if not index:
             response = {"message": f"Transaction recused, No wallet found"}
         else:
             response = {"message": f"Transaction will be added to Block index: {index}+"}
-    else:
+    elif not json.get("type"):
         node_address = f"{hostname}_{uuid_string}_{PORT}"
         index = blockchain.add_transaction(node_address, json["receiver"], json["amount"], json["message"], "iso", "self")
         if not index:
