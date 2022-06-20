@@ -21,6 +21,7 @@ class Blockchain:
         self.chain = []
         self.transactions = []
         self.nodes = set()
+        self.generic_wallet_address = _global.UUID_STRING
         
         ##########################################
         #print(__name__)
@@ -37,6 +38,9 @@ class Blockchain:
         print("Let there be Block!!! Creating Genesis Block!!!")
         self.create_block(previous_hash = "big_bang_minus_one")
     
+    def get_gen_wallet_addr(self):
+        return self.generic_wallet_address
+
     def subtract_supply(self, amount, fee):
         if ((amount + fee) <= self.initial_supply):
             self.initial_supply = (self.initial_supply - amount - fee)
@@ -116,7 +120,8 @@ class Blockchain:
             block_index += 1
         return True
 
-    def check_sender(self, receiver, amount, fee, type):
+    def check_receiver(self, receiver, amount, fee, type):
+        print(f"------------------- receiver: {receiver}")
         response = requests.get(_global.get_wallet_api_url).text
         r = json.loads(response)
         for i in r['wallets']:
@@ -140,9 +145,9 @@ class Blockchain:
         if type == "reward" or type == "iso" or type == "ico":
             fee = 0.0
         else:
-            fee = self.calculate_fee(amount)
+            fee = float(self.calculate_fee(amount))
 
-        if self.check_sender(receiver = receiver, amount = amount, fee = fee, type = type):
+        if self.check_receiver(receiver = receiver, amount = amount, fee = fee, type = type):
 
             t_timestamp = str(round(time.time()))
             tx = blake2b(digest_size=_global.AUTH_SIZE, key=_global.SECRET_KEY.encode())

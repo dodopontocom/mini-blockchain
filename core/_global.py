@@ -13,7 +13,9 @@ TSUPPLY = 1_000_000_000_000
 GENESIS_HASH = str(uuid4()).replace('-', '')
 SECRET_KEY = "lifeisachessgame,youdontwanttowasteamove"
 AUTH_SIZE = 32
+UUID_STRING = GENESIS_HASH
 
+WALLET_ADDRESS_ZERO = "wallet_address_zero"
 W0_BALANCE = 0
 W1_BALANCE = 0
 W2_BALANCE = 0

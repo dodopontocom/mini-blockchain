@@ -8,9 +8,14 @@
 <h1>Add a transaction</h1>
 <form method="post" action="_add_transaction">
     <label for="sender">Sender</label>
-    <input type="text" name="sender" value="">
+    <input type="text" name="sender" value={{gen_wallet_addr}}>
     <p><label for="receiver">Receiver</label>
-    <input type="text" name="receiver" value="" required></p>
+        <select onchange="changeValue();" id="wallet" name="wallet">
+        {% for i in range(0, wlen)%}
+            <option type="text" value={{wallet_api_addr[i]}} SELECTED>{{wallet_api_addr[i]}}</option>
+        {% endfor %}
+        </select>
+    <p><input type="text" name="receiver" id="receiver"></p>
     <p><label for="amount">Amount</label>
     <input type="text" name="amount" value="" required></p>
     <p><label for="message">Message</label>
@@ -20,6 +25,13 @@
     <button type="submit" name="add_transaction" value="add_transaction">Just add the transaction</button>
     <p><button type="submit" name="add_and_mint" value="add_and_mint">Add and mint next block!</button></p>
 </form>
-
+<script>
+    function changeValue() {
+        var option=document.getElementById('wallet').value;
+      console.log(option)
+      document.getElementById("receiver").value=option;
+    }
+</script>
+</br>
 </body>
 </html>

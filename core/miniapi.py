@@ -2,13 +2,13 @@
 
 from flask import Flask, jsonify, request, session, redirect, url_for, render_template
 import miniblock
-from uuid import uuid4
 import time
 import sys
 import socket
 import _global
 import os
 import subprocess
+import requests, json
 
 startTime = time.time()
 
@@ -21,7 +21,7 @@ PORT = sys.argv[1]
 blockchain = miniblock.Blockchain(PORT)
 
 hostname = socket.gethostname()
-uuid_string = str(uuid4()).replace("-", "")
+uuid_string = _global.UUID_STRING
 
 @app.route("/replace_chain", methods = ["GET"])
 def replace_chain():
@@ -122,7 +122,14 @@ def hello():
 
 @app.route("/")
 def home():
-    return render_template("add_transaction.html")
+    gen_wallet_addr = blockchain.get_gen_wallet_addr()
+    wallet_api_addr = []
+    response = requests.get(_global.get_wallet_api_url).text
+    r = json.loads(response)
+    for i in r['wallets']:
+        wallet_api_addr.append(i['blake2b'])
+    print(wallet_api_addr)
+    return render_template("add_transaction.html", gen_wallet_addr = gen_wallet_addr, wlen = len(wallet_api_addr), wallet_api_addr = wallet_api_addr)
 
 @app.route("/get_by_index")
 def get_by_index():
@@ -213,11 +220,6 @@ def latest_blocks():
     transactions = bchain[3]['transactions']
     amount = float(transactions[0]['amount'])
     print((_global.TSUPPLY - amount))
-    #response = {
-    #    "length": len(blockchain.chain)
-    #}
-    #response = {"message": "oi"}
-    #return jsonify(response), 200
     return render_template("latest_blocks.html", len = len(bchain), bchain = bchain, transactions = transactions)
 
 if __name__ == "__main__":

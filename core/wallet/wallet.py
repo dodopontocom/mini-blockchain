@@ -11,7 +11,6 @@ url_to_add_transaction = 'http://127.0.0.1:5005/add_transaction'
 class Wallet:
 
     def __init__(self):
-        print("the wallet")
         self.blockchain = miniblock.Blockchain(port = 6500)
         self.wallets = []
         
