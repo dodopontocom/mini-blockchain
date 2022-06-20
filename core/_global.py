@@ -14,11 +14,13 @@ GENESIS_HASH = str(uuid4()).replace('-', '')
 SECRET_KEY = "lifeisachessgame,youdontwanttowasteamove"
 AUTH_SIZE = 32
 
-W0_BALANCE = 120_000_000
-W1_BALANCE = 345
-W2_BALANCE = 560
+W0_BALANCE = 0
+W1_BALANCE = 0
+W2_BALANCE = 0
 
 INIT_SUPPLY = (TSUPPLY - W0_BALANCE - W1_BALANCE - W2_BALANCE)
+
+get_wallet_api_url = "http://127.0.0.1:6500/get_wallets"
 
 high_transaction_count = 50
 proof_speed = 400
@@ -57,5 +59,5 @@ def sign_blake2(self, cookie):
         return h.hexdigest()
 
 def verify_disgest(self, cookie, sig):
-    good_sig = self.sign_blake2(cookie)
+    good_sig = sign_blake2(self, cookie)
     return compare_digest(good_sig, sig)

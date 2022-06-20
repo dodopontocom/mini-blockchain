@@ -38,16 +38,11 @@ class Blockchain:
         self.create_block(previous_hash = "big_bang_minus_one")
     
     def subtract_supply(self, amount, fee):
-        if self.initial_supply >= amount:
-            if ((amount + fee) <= self.initial_supply):
-                self.initial_supply = (self.initial_supply - amount - fee)
-                print(f"------------------------ {self.initial_supply}")
-                return True
-            else:
-                return False
+        if ((amount + fee) <= self.initial_supply):
+            self.initial_supply = (self.initial_supply - amount - fee)
+            return True
         else:
-            return False
-        
+            return False        
 
     def connect_nodes(self):
         f = open("nodes.json")
@@ -67,19 +62,11 @@ class Blockchain:
         self.chain.append(block)
         return block
 
-    def sign_blake2(self, cookie):
-        h = blake2b(digest_size=_global.AUTH_SIZE, key=_global.SECRET_KEY.encode())
-        h.update(cookie)
-        return h.hexdigest()
-    def verify_disgest(self, cookie, sig):
-        good_sig = self.sign_blake2(cookie)
-        return compare_digest(good_sig, sig)
-
     def create_block(self, previous_hash):
         cookie = json.dumps(self.transactions).encode('utf-8')
-        sig = self.sign_blake2(cookie)
+        sig = _global.sign_blake2(self, cookie)
         tx_encoded = cryptocode.encrypt(str(cookie), _global.SECRET_KEY)
-        if self.verify_disgest(json.dumps(self.transactions).encode(), sig):
+        if _global.verify_disgest(self, json.dumps(self.transactions).encode(), sig):
             block = {
                 "era": _global.ERA,
                 "index": len(self.chain) + 1,
@@ -125,29 +112,20 @@ class Blockchain:
             block = chain[block_index]
             if block["previous_hash"] != previous_block["hash"]:
                 return False
-            #previous_proof = previous_block["proof"]
-            #proof = block["proof"]
-            #hash_operation = hashlib.sha256(json.dumps(block).encode()).hexdigest()
-            #if hash_operation[:len(ZEROS)] != ZEROS:
-            #    return False
             previous_block = block
             block_index += 1
         return True
 
-    def check_sender_balance(self, receiver, amount, fee, type):
-        print("function to verify before adding transaction")
-        response = requests.get("http://127.0.0.1:6500/get_wallets").text
+    def check_sender(self, receiver, amount, fee, type):
+        response = requests.get(_global.get_wallet_api_url).text
         r = json.loads(response)
-
         for i in r['wallets']:
             if (i['blake2b']==receiver):
-                balance = (i['balance'])
                 if self.subtract_supply(amount, fee):
-                    print("new wallet")
                     return True
                 else:
                     return False
-        print(type)
+
         if type == "reward" or type == "iso" or type == "ico" or type == "standard" or type == "ui-test":
             if self.subtract_supply(amount, fee):
                 return True
@@ -155,22 +133,16 @@ class Blockchain:
                 return False
         else:
             return False
-        # sender(will be a node) is a valid?
-        # receiver is a valid wallet?
-        # fee = self.calculate_fee(amount) 
-        # if (amount + fee) >= init_supply: return True
-        # else: return False
 
     def add_transaction(self, sender, receiver, amount, message, type, index_ref):
         
-        #TODO: better add index_ref
         previous_block = self.get_previous_block()
         if type == "reward" or type == "iso" or type == "ico":
             fee = 0.0
         else:
             fee = self.calculate_fee(amount)
 
-        if self.check_sender_balance(receiver = receiver, amount = amount, fee = fee, type = type):
+        if self.check_sender(receiver = receiver, amount = amount, fee = fee, type = type):
 
             t_timestamp = str(round(time.time()))
             tx = blake2b(digest_size=_global.AUTH_SIZE, key=_global.SECRET_KEY.encode())

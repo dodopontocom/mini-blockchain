@@ -6,7 +6,7 @@ import requests
 import json
 import time
 
-url = 'http://127.0.0.1:5005/add_transaction'
+url_to_add_transaction = 'http://127.0.0.1:5005/add_transaction'
 
 class Wallet:
 
@@ -16,7 +16,6 @@ class Wallet:
         self.wallets = []
         
     def create_wallet(self, amount):
-        print("create wallet")
         t_timestamp = str(time.time())
         cookie = (f"{t_timestamp}_{amount}").encode('utf-8')
         blake2b = _global.sign_blake2(self, cookie)
@@ -36,10 +35,8 @@ class Wallet:
                     "private_key": "x"
                 }
             )
-            requests.post(url, json = this_transaction)
+            requests.post(url_to_add_transaction, json = this_transaction)
             return (f"Wallet {len(self.wallets)} created!")
         else:
             return "Wallet not created, not funds in total supply"
 
-    def give_reward_on_creation(self):
-        print("Reward for creating a miniblock wallet")

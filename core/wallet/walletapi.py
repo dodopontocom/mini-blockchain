@@ -14,9 +14,9 @@ wallet = wallet.Wallet()
 
 @app.route("/create_wallet")
 def home():
-    updated_total_supply = wallet.create_wallet(980_999_999)
+    _return = wallet.create_wallet(100)
     return render_template("create_wallet.html",
-                    updated_total_supply = updated_total_supply)
+        _return = _return)
 
 @app.route("/get_wallets", methods=["GET"])
 def get_wallets():

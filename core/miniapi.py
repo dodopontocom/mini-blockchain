@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import uuid
 from flask import Flask, jsonify, request, session, redirect, url_for, render_template
 import miniblock
 from uuid import uuid4
