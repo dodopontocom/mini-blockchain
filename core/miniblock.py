@@ -37,13 +37,14 @@ class Blockchain:
         print("Let there be Block!!! Creating Genesis Block!!!")
         self.create_block(previous_hash = "big_bang_minus_one")
     
-    def updated_supply_amount(self):
-        return "oi"
-    
-    def subtract_supply(self, amount):
+    def subtract_supply(self, amount, fee):
         if self.initial_supply >= amount:
-            self.initial_supply = (self.initial_supply - amount)
-            return self.initial_supply
+            if ((amount + fee) <= self.initial_supply):
+                self.initial_supply = (self.initial_supply - amount - fee)
+                print(f"------------------------ {self.initial_supply}")
+                return True
+            else:
+                return False
         else:
             return False
         
@@ -133,40 +134,50 @@ class Blockchain:
             block_index += 1
         return True
 
-    def check_sender_balance(self, receiver, type):
+    def check_sender_balance(self, receiver, amount, fee, type):
         print("function to verify before adding transaction")
         response = requests.get("http://127.0.0.1:6500/get_wallets").text
         r = json.loads(response)
 
         for i in r['wallets']:
             if (i['blake2b']==receiver):
+                balance = (i['balance'])
+                if self.subtract_supply(amount, fee):
+                    print("new wallet")
+                    return True
+                else:
+                    return False
+        print(type)
+        if type == "reward" or type == "iso" or type == "ico" or type == "standard" or type == "ui-test":
+            if self.subtract_supply(amount, fee):
                 return True
-        if type == "reward":
-            return True
+            else:
+                return False
         else:
             return False
         # sender(will be a node) is a valid?
         # receiver is a valid wallet?
         # fee = self.calculate_fee(amount) 
-        # if (sender.wallet['balance'] + fee) >= amount: return True
+        # if (amount + fee) >= init_supply: return True
         # else: return False
 
     def add_transaction(self, sender, receiver, amount, message, type, index_ref):
         
-        if self.check_sender_balance(receiver = receiver, type = type):
+        #TODO: better add index_ref
+        previous_block = self.get_previous_block()
+        if type == "reward" or type == "iso" or type == "ico":
+            fee = 0.0
+        else:
+            fee = self.calculate_fee(amount)
+
+        if self.check_sender_balance(receiver = receiver, amount = amount, fee = fee, type = type):
 
             t_timestamp = str(round(time.time()))
             tx = blake2b(digest_size=_global.AUTH_SIZE, key=_global.SECRET_KEY.encode())
             to_hex = f"{message}_{t_timestamp}"
             tx.update((to_hex).encode())
             transaction_blake2b = tx.hexdigest()
-
-            #TODO: better add index_ref
-            previous_block = self.get_previous_block()
-            if type == "reward" or type == "iso" or type == "ico":
-                fee = 0.0
-            else:
-                fee = self.calculate_fee(amount)                
+              
             self.transactions.append(
                 {
                     "transaction_blake2b": transaction_blake2b,

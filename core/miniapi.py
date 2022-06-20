@@ -86,7 +86,16 @@ def _replace_chain():
 def get_chain():
     response = {
         "chain": blockchain.chain,
-        "length": len(blockchain.chain)
+        "length": len(blockchain.chain),
+        "total_supply": blockchain.initial_supply
+    }
+
+    return jsonify(response), 200
+
+@app.route("/get_supply", methods=["GET"])
+def get_supply():
+    response = {
+        "total_supply": blockchain.initial_supply
     }
 
     return jsonify(response), 200
