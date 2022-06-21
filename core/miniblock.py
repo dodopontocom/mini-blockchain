@@ -165,7 +165,9 @@ class Blockchain:
 
                 _post = {
                     "amount": (amount + fee),
-                    "blake2b": sender
+                    "sender": sender,
+                    "receiver": receiver,
+                    "dest_amount": amount
                 }
                 requests.post("http://127.0.0.1:6500/update_balance", json = _post)
                 #return (f"Wallet {len(self.wallets)} created!")

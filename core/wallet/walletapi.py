@@ -30,8 +30,10 @@ def get_wallets():
 def update_balance():
     json = request.get_json()
     amount = json.get("amount")
-    blake2b = json.get("blake2b")
-    wallet.update_balance(amount, blake2b)
+    sender = json.get("sender")
+    receiver = json.get("receiver")
+    dest_amount = json.get("dest_amount")
+    wallet.update_balance(amount, sender, receiver, dest_amount)
    
     response = {
         "wallets": wallet.wallets,

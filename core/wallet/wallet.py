@@ -14,11 +14,15 @@ class Wallet:
         self.blockchain = miniblock.Blockchain(port = 6500)
         self.wallets = []
     
-    def update_balance(self, amount, blake2b):
+    def update_balance(self, amount, sender, receiver, dest_amount):
         for i in self.wallets:
-            if (i['blake2b']==blake2b):
+            if (i['blake2b']==sender):
                 balance = i['balance']
                 i['balance'] = (balance - amount)
+                print(self.wallets)
+            if (i['blake2b']==receiver):
+                balance = i['balance']
+                i['balance'] = (balance + dest_amount)
                 print(self.wallets)
 
     def create_wallet(self, amount):
