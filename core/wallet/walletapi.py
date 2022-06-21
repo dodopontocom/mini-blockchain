@@ -26,6 +26,20 @@ def get_wallets():
     }
     return jsonify(response), 200
 
+@app.route("/update_balance", methods = ["POST"])
+def update_balance():
+    json = request.get_json()
+    amount = json.get("amount")
+    blake2b = json.get("blake2b")
+    wallet.update_balance(amount, blake2b)
+   
+    response = {
+        "wallets": wallet.wallets,
+        "wlength": len(wallet.wallets)
+    }
+    return jsonify(response), 200
+    
+
 if __name__ == "__main__":
     print(__name__)
     app.run(host = "0.0.0.0", port = 6500)

@@ -163,6 +163,13 @@ class Blockchain:
         if self.check_sender(sender = sender, amount = amount, fee = fee, type = type):
             if self.check_receiver(receiver = receiver, amount = amount, fee = fee, type = type):
 
+                _post = {
+                    "amount": (amount + fee),
+                    "blake2b": sender
+                }
+                requests.post("http://127.0.0.1:6500/update_balance", json = _post)
+                #return (f"Wallet {len(self.wallets)} created!")
+
                 t_timestamp = str(round(time.time()))
                 tx = blake2b(digest_size=_global.AUTH_SIZE, key=_global.SECRET_KEY.encode())
                 to_hex = f"{message}_{t_timestamp}"

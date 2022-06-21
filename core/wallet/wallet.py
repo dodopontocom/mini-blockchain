@@ -13,7 +13,14 @@ class Wallet:
     def __init__(self):
         self.blockchain = miniblock.Blockchain(port = 6500)
         self.wallets = []
-        
+    
+    def update_balance(self, amount, blake2b):
+        for i in self.wallets:
+            if (i['blake2b']==blake2b):
+                balance = i['balance']
+                i['balance'] = (balance - amount)
+                print(self.wallets)
+
     def create_wallet(self, amount):
         t_timestamp = str(time.time())
         cookie = (f"{t_timestamp}_{amount}").encode('utf-8')
