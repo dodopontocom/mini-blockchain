@@ -17,7 +17,7 @@ class Wallet:
     def create_wallet(self, amount):
         t_timestamp = str(time.time())
         cookie = (f"{t_timestamp}_{amount}").encode('utf-8')
-        blake2b = _global.sign_blake2(self, cookie)
+        blake2b = ("mini_addr" + _global.sign_blake2(self, cookie))
 
         this_transaction = {
             "receiver": blake2b,

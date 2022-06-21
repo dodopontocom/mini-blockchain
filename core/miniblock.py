@@ -116,12 +116,30 @@ class Blockchain:
             block_index += 1
         return True
 
+    def check_sender(self, sender, amount, fee, type):
+        response = requests.get(_global.get_wallet_api_url).text
+        s = json.loads(response)
+        for i in s['wallets']:
+            if (i['blake2b']==sender):
+                balance = (i['balance'])
+                if balance >= (amount + fee):
+                    return True
+                else:
+                    return False
+        if type == "reward" or type == "iso" or type == "ico" or type == "standard" or type == "ui-test":
+            if self.subtract_supply(amount, fee):
+                return True
+            else:
+                return False
+        else:
+            return False
+
     def check_receiver(self, receiver, amount, fee, type):
-        print(f"------------------- receiver: {receiver}")
         response = requests.get(_global.get_wallet_api_url).text
         r = json.loads(response)
         for i in r['wallets']:
             if (i['blake2b']==receiver):
+                balance = (i['balance'])
                 if self.subtract_supply(amount, fee):
                     return True
                 else:
@@ -142,33 +160,35 @@ class Blockchain:
             fee = 0.0
         else:
             fee = float(self.calculate_fee(amount))
+        if self.check_sender(sender = sender, amount = amount, fee = fee, type = type):
+            if self.check_receiver(receiver = receiver, amount = amount, fee = fee, type = type):
 
-        if self.check_receiver(receiver = receiver, amount = amount, fee = fee, type = type):
-
-            t_timestamp = str(round(time.time()))
-            tx = blake2b(digest_size=_global.AUTH_SIZE, key=_global.SECRET_KEY.encode())
-            to_hex = f"{message}_{t_timestamp}"
-            tx.update((to_hex).encode())
-            transaction_blake2b = tx.hexdigest()
-              
-            self.transactions.append(
-                {
-                    "transaction_blake2b": transaction_blake2b,
-                    "sender": sender,
-                    "receiver": receiver, 
-                    "amount": amount,
-                    "index_ref": index_ref,
-                    "message": message,
-                    "fee": fee,
-                    "type": type,
-                    "t_timestamp": t_timestamp,
-                    "t_timestamp_pretty": str(datetime.fromtimestamp(round(time.time())).utcnow()).split(".")[0] + "Z"
-                }
-            )
-            return previous_block["index"] + 1
+                t_timestamp = str(round(time.time()))
+                tx = blake2b(digest_size=_global.AUTH_SIZE, key=_global.SECRET_KEY.encode())
+                to_hex = f"{message}_{t_timestamp}"
+                tx.update((to_hex).encode())
+                transaction_blake2b = tx.hexdigest()
+                
+                self.transactions.append(
+                    {
+                        "transaction_blake2b": transaction_blake2b,
+                        "sender": sender,
+                        "receiver": receiver, 
+                        "amount": amount,
+                        "index_ref": index_ref,
+                        "message": message,
+                        "fee": fee,
+                        "type": type,
+                        "t_timestamp": t_timestamp,
+                        "t_timestamp_pretty": str(datetime.fromtimestamp(round(time.time())).utcnow()).split(".")[0] + "Z"
+                    }
+                )
+                return previous_block["index"] + 1
+            else:
+                return False
         else:
-            return False
-    
+            False
+
     def add_node(self, address):
         parsed_url = urlparse(address)
         self.nodes.add(parsed_url.netloc)
