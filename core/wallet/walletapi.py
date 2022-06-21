@@ -14,7 +14,7 @@ wallet = wallet.Wallet()
 
 @app.route("/create_wallet")
 def home():
-    _return = wallet.create_wallet(100)
+    _return = wallet.create_wallet(150.0)
     return render_template("create_wallet.html",
         _return = _return)
 
@@ -43,5 +43,4 @@ def update_balance():
     
 
 if __name__ == "__main__":
-    print(__name__)
     app.run(host = "0.0.0.0", port = 6500)

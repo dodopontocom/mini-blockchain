@@ -19,11 +19,9 @@ class Wallet:
             if (i['blake2b']==sender):
                 balance = i['balance']
                 i['balance'] = (balance - amount)
-                print(self.wallets)
             if (i['blake2b']==receiver):
                 balance = i['balance']
                 i['balance'] = (balance + dest_amount)
-                print(self.wallets)
 
     def create_wallet(self, amount):
         t_timestamp = str(time.time())
@@ -36,7 +34,7 @@ class Wallet:
             "type": "ico",
             "message": "Transaction to a new wallet creation!"
         }
-
+        self.blockchain.set_function_has_been_called(False)
         if self.blockchain.subtract_supply(amount, fee = 0.0):
             self.wallets.append(
                 {

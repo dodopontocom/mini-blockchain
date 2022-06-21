@@ -17,13 +17,13 @@ class Blockchain:
     def __init__(self, port):
         self.total_supply = _global.TSUPPLY
         self.initial_supply = _global.INIT_SUPPLY
+        self.subtrac_frunction_has_been_called = False
         self.port = port
         self.chain = []
         self.transactions = []
         self.nodes = set()
         
         ##########################################
-        #print(__name__)
         #self.connect_nodes()
         ##########################################
 
@@ -36,13 +36,22 @@ class Blockchain:
         # elif not self.replace_chain():
         print("Let there be Block!!! Creating Genesis Block!!!")
         self.create_block(previous_hash = "big_bang_minus_one")
+    
+    def set_function_has_been_called(self, flag):
+        self.subtrac_frunction_has_been_called = flag
 
     def subtract_supply(self, amount, fee):
-        if ((amount + fee) <= self.initial_supply):
-            self.initial_supply = (self.initial_supply - amount - fee)
-            return True
+        if not self.subtrac_frunction_has_been_called:
+            if ((amount + fee) <= self.initial_supply):
+                self.initial_supply = (self.initial_supply - amount - fee)
+                print(f"----------------------- {self.initial_supply}")
+                self.subtrac_frunction_has_been_called = True
+                return True
+            else:
+                return False
         else:
-            return False        
+            self.subtrac_frunction_has_been_called = False
+            return True
 
     def connect_nodes(self):
         f = open("nodes.json")
@@ -77,6 +86,7 @@ class Blockchain:
                 "transactions_hash": self.transactions,
             }
             self.transactions = []
+            self.subtrac_frunction_has_been_called = False
             self.chain.append(self.hash("sha", block))
         return block
 
@@ -169,7 +179,8 @@ class Blockchain:
                     "receiver": receiver,
                     "dest_amount": amount
                 }
-                requests.post("http://127.0.0.1:6500/update_balance", json = _post)
+                if type != "ico":
+                    requests.post("http://127.0.0.1:6500/update_balance", json = _post)
                 #return (f"Wallet {len(self.wallets)} created!")
 
                 t_timestamp = str(round(time.time()))
@@ -192,6 +203,7 @@ class Blockchain:
                         "t_timestamp_pretty": str(datetime.fromtimestamp(round(time.time())).utcnow()).split(".")[0] + "Z"
                     }
                 )
+                self.subtrac_frunction_has_been_called = False
                 return previous_block["index"] + 1
             else:
                 return False

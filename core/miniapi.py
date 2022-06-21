@@ -58,6 +58,7 @@ def _replace_chain():
         node_address = f"{hostname}_{uuid_string}_{PORT}"
 
     if previous_block['index'] == 1:
+        
         blockchain.add_transaction(sender = node_address, receiver = "Elisa", amount = float(reward), message = _message, type = "reward", index_ref = 1)
         block = blockchain.create_block(previous_hash)
         blockchain.add_transaction(sender = node_address, receiver = "Elisa", amount = float(reward), message = _message, type = "reward", index_ref = 2)
@@ -127,7 +128,6 @@ def home():
     r = json.loads(response)
     for i in r['wallets']:
         wallet_api_addr.append(i['blake2b'])
-    print(wallet_api_addr)
     return render_template("add_transaction.html", wlen = len(wallet_api_addr), wallet_api_addr = wallet_api_addr)
 
 @app.route("/get_by_index")
