@@ -7,15 +7,22 @@
 <body>
 <h1>Add a transaction</h1>
 <form method="post" action="_add_transaction">
-    <label for="sender">Sender</label>
-    <input type="text" name="sender" value={{gen_wallet_addr}}>
-    <p><label for="receiver">Receiver</label>
-        <select onchange="changeValue();" id="wallet" name="wallet">
+    <p><label for="sender">Sender</label>
+    <input type="text" name="sender" id="sender">
+    <select onchange="changeValue();" id="from_wallet" name="from_wallet">
+        <option value="" selected>Select From wallet</option>
         {% for i in range(0, wlen)%}
-            <option type="text" value={{wallet_api_addr[i]}} SELECTED>{{wallet_api_addr[i]}}</option>
+            <option type="text" value={{wallet_api_addr[i]}}>{{wallet_api_addr[i]}}</option>
         {% endfor %}
-        </select>
-    <p><input type="text" name="receiver" id="receiver"></p>
+    </select></p>
+    <p><label for="receiver">Receiver</label>
+    <input type="text" name="receiver" id="receiver">
+    <select onchange="changeValue();" id="dest_wallet" name="dest_wallet">
+        <option value="" selected>Select Destination wallet</option>
+        {% for i in range(0, wlen)%}
+            <option type="text" value={{wallet_api_addr[i]}}>{{wallet_api_addr[i]}}</option>
+        {% endfor %}
+    </select></p>
     <p><label for="amount">Amount</label>
     <input type="text" name="amount" value="" required></p>
     <p><label for="message">Message</label>
@@ -27,9 +34,11 @@
 </form>
 <script>
     function changeValue() {
-        var option=document.getElementById('wallet').value;
-      console.log(option)
-      document.getElementById("receiver").value=option;
+        var from_option=document.getElementById('from_wallet').value;
+        var dest_option=document.getElementById('dest_wallet').value;
+        console.log(from_option)
+      document.getElementById("receiver").value=dest_option;
+      document.getElementById("sender").value=from_option;
     }
 </script>
 </br>

@@ -21,7 +21,6 @@ class Blockchain:
         self.chain = []
         self.transactions = []
         self.nodes = set()
-        self.generic_wallet_address = _global.UUID_STRING
         
         ##########################################
         #print(__name__)
@@ -37,9 +36,6 @@ class Blockchain:
         # elif not self.replace_chain():
         print("Let there be Block!!! Creating Genesis Block!!!")
         self.create_block(previous_hash = "big_bang_minus_one")
-    
-    def get_gen_wallet_addr(self):
-        return self.generic_wallet_address
 
     def subtract_supply(self, amount, fee):
         if ((amount + fee) <= self.initial_supply):

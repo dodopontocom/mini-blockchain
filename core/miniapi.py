@@ -122,14 +122,13 @@ def hello():
 
 @app.route("/")
 def home():
-    gen_wallet_addr = blockchain.get_gen_wallet_addr()
     wallet_api_addr = []
     response = requests.get(_global.get_wallet_api_url).text
     r = json.loads(response)
     for i in r['wallets']:
         wallet_api_addr.append(i['blake2b'])
     print(wallet_api_addr)
-    return render_template("add_transaction.html", gen_wallet_addr = gen_wallet_addr, wlen = len(wallet_api_addr), wallet_api_addr = wallet_api_addr)
+    return render_template("add_transaction.html", wlen = len(wallet_api_addr), wallet_api_addr = wallet_api_addr)
 
 @app.route("/get_by_index")
 def get_by_index():

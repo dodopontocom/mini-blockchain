@@ -16,8 +16,9 @@
 
 <label>Select the block index number</label>
 <select onchange="_val(this)" id="index" name="index">
+  <option value="" selected>Select Index Number</option>
   {% for ind in range(0, len)%}
-    <option value='{{bchain[ind]}}' SELECTED>choose index -> {{bchain[ind]['index']}}</option>"
+    <option value='{{bchain[ind]}}'>{{bchain[ind]['index']}}</option>"
   {% endfor %}
 </select>
 
