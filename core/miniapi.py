@@ -217,7 +217,6 @@ def add_transaction():
 def set_subtract_flag():
     json = request.get_json()
     flag = json.get("flag")
-    print("flag ----- {flag}")
     blockchain.set_function_has_been_called(flag)
     response = {"message" : "flag changed"}
     return jsonify(response), 200

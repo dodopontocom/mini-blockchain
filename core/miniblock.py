@@ -17,7 +17,7 @@ class Blockchain:
     def __init__(self, port):
         self.total_supply = _global.TSUPPLY
         self.initial_supply = _global.INIT_SUPPLY
-        self.subtrac_frunction_has_been_called = False
+        self.subtrac_function_has_been_called = False
         self.wallet_wallet_tx = False
         self.port = port
         self.chain = []
@@ -42,35 +42,39 @@ class Blockchain:
     
     def get_all_wallets_balance_and_subtract_in_t_supply(self):
         get_all_balance = []
-        response = requests.get(_global.get_wallet_api_url).text
-        r = json.loads(response)
-        for i in r['wallets']:
-            get_all_balance.append(i['balance'])
-        #total_balance = "sum of all balances"
-        total_balance = 0
-        for i in range(len(get_all_balance)):
-            total_balance = total_balance + get_all_balance[i]
-        print(f"total balance among wallets: {total_balance}")
-        self.initial_supply = (self.initial_supply - total_balance)        
+        try:
+            response = requests.get(_global.get_wallet_api_url).text
+            r = json.loads(response)
+            for i in r['wallets']:
+                get_all_balance.append(i['balance'])
+            #total_balance = "sum of all balances"
+            total_balance = 0
+            for i in range(len(get_all_balance)):
+                total_balance = total_balance + get_all_balance[i]
+            print(f"total balance among wallets: {total_balance}")
+            self.initial_supply = (self.initial_supply - total_balance)
+        except requests.exceptions.ConnectionError:
+            print("Wallet api is offline...")
+            pass
+                
     
     def if_wallet_to_wallet_flag(self, flag):
         self.wallet_wallet_tx = flag
     
     def set_function_has_been_called(self, flag):
-        self.subtrac_frunction_has_been_called = flag
+        self.subtrac_function_has_been_called = flag
     
     def subtract_supply(self, amount, fee):
         if not self.wallet_wallet_tx:
-            if not self.subtrac_frunction_has_been_called:
+            if not self.subtrac_function_has_been_called:
                 if ((amount + fee) <= self.initial_supply):
                     self.initial_supply = (self.initial_supply - amount - fee)
-                    print(f"----------------------- {self.initial_supply}")
-                    self.subtrac_frunction_has_been_called = True
+                    self.subtrac_function_has_been_called = True
                     return True
                 else:
                     return False
             else:
-                self.subtrac_frunction_has_been_called = False
+                self.subtrac_function_has_been_called = False
                 return True
         else:
             self.wallet_wallet_tx = False
@@ -109,7 +113,7 @@ class Blockchain:
                 "transactions_hash": self.transactions,
             }
             self.transactions = []
-            self.subtrac_frunction_has_been_called = False
+            self.subtrac_function_has_been_called = False
             self.chain.append(self.hash("sha", block))
         return block
 
@@ -226,7 +230,7 @@ class Blockchain:
                         "t_timestamp_pretty": str(datetime.fromtimestamp(round(time.time())).utcnow()).split(".")[0] + "Z"
                     }
                 )
-                self.subtrac_frunction_has_been_called = False
+                self.subtrac_function_has_been_called = False
                 return previous_block["index"] + 1
             else:
                 return False
