@@ -18,10 +18,13 @@ class Blockchain:
         self.total_supply = _global.TSUPPLY
         self.initial_supply = _global.INIT_SUPPLY
         self.subtrac_frunction_has_been_called = False
+        self.wallet_wallet_tx = False
         self.port = port
         self.chain = []
         self.transactions = []
         self.nodes = set()
+
+        self.get_all_wallets_balance_and_subtract_in_t_supply()
         
         ##########################################
         #self.connect_nodes()
@@ -37,20 +40,40 @@ class Blockchain:
         print("Let there be Block!!! Creating Genesis Block!!!")
         self.create_block(previous_hash = "big_bang_minus_one")
     
+    def get_all_wallets_balance_and_subtract_in_t_supply(self):
+        get_all_balance = []
+        response = requests.get(_global.get_wallet_api_url).text
+        r = json.loads(response)
+        for i in r['wallets']:
+            get_all_balance.append(i['balance'])
+        #total_balance = "sum of all balances"
+        total_balance = 0
+        for i in range(len(get_all_balance)):
+            total_balance = total_balance + get_all_balance[i]
+        print(f"total balance among wallets: {total_balance}")
+        self.initial_supply = (self.initial_supply - total_balance)        
+    
+    def if_wallet_to_wallet_flag(self, flag):
+        self.wallet_wallet_tx = flag
+    
     def set_function_has_been_called(self, flag):
         self.subtrac_frunction_has_been_called = flag
-
+    
     def subtract_supply(self, amount, fee):
-        if not self.subtrac_frunction_has_been_called:
-            if ((amount + fee) <= self.initial_supply):
-                self.initial_supply = (self.initial_supply - amount - fee)
-                print(f"----------------------- {self.initial_supply}")
-                self.subtrac_frunction_has_been_called = True
-                return True
+        if not self.wallet_wallet_tx:
+            if not self.subtrac_frunction_has_been_called:
+                if ((amount + fee) <= self.initial_supply):
+                    self.initial_supply = (self.initial_supply - amount - fee)
+                    print(f"----------------------- {self.initial_supply}")
+                    self.subtrac_frunction_has_been_called = True
+                    return True
+                else:
+                    return False
             else:
-                return False
+                self.subtrac_frunction_has_been_called = False
+                return True
         else:
-            self.subtrac_frunction_has_been_called = False
+            self.wallet_wallet_tx = False
             return True
 
     def connect_nodes(self):

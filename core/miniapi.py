@@ -143,15 +143,25 @@ def _home():
 def _add_transaction():
     index = None
     response = None
+    
+    wallet_api_addr = []
+    response = requests.get(_global.get_wallet_api_url).text
+    r = json.loads(response)
+    for i in r['wallets']:
+        wallet_api_addr.append(i['blake2b'])
+    
     if request.form.get("add_transaction"):
-        sender = request.form.get("sender")
+        sender = request.form.get("sender")        
         if sender == "":
             sender = f"{request.user_agent.browser}_{uuid_string}_{PORT}"
-        receiver = request.form.get("receiver")
+        if sender in wallet_api_addr:
+            blockchain.if_wallet_to_wallet_flag(True)
+        receiver = request.form.get("receiver")        
         amount = request.form.get("amount")
         message = request.form.get("message")
         index = blockchain.add_transaction(sender, receiver, float(amount), message, "ui-test", "self")
         if not index:
+            #TODO: make a count of recused transactions and display
             response = {"message": f"Transaction recused, No wallet found"}
         else:
             response = {"message": f"Transaction will be added to Block index: {index}+"}        
@@ -159,6 +169,8 @@ def _add_transaction():
         sender = request.form.get("sender")
         if sender == "":
             sender = f"{request.user_agent.browser}_{uuid_string}_{PORT}"
+        if sender in wallet_api_addr:
+            blockchain.if_wallet_to_wallet_flag(True)
         receiver = request.form.get("receiver")
         amount = request.form.get("amount")
         message = request.form.get("message")
@@ -200,6 +212,24 @@ def add_transaction():
             response = {"message": f"Transaction will be added to Block index: {index}+"}
     
     return jsonify(response), 201
+
+@app.route("/set_subtract_flag", methods = ["POST"])
+def set_subtract_flag():
+    json = request.get_json()
+    flag = json.get("flag")
+    print("flag ----- {flag}")
+    blockchain.set_function_has_been_called(flag)
+    response = {"message" : "flag changed"}
+    return jsonify(response), 200
+
+@app.route("/apply_subtr_function", methods = ["POST"])
+def apply_subtr_function():
+    json = request.get_json()
+    amount = json.get("amount")
+    fee = json.get("fee")
+    blockchain.subtract_supply(amount, fee)
+    response = {"message" : "subtracted on total supply"}
+    return jsonify(response), 200
 
 @app.route("/connect_node", methods = ["POST"])
 def connect_node():

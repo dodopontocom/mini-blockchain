@@ -14,7 +14,7 @@ wallet = wallet.Wallet()
 
 @app.route("/create_wallet")
 def home():
-    _return = wallet.create_wallet(150.0)
+    _return = wallet.create_wallet(11500.0)
     return render_template("create_wallet.html",
         _return = _return)
 
