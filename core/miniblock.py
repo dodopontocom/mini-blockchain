@@ -27,23 +27,23 @@ class Blockchain:
         self.get_all_wallets_balance_and_subtract_in_t_supply()
         
         ##########################################
-        #self.connect_nodes()
+        self.connect_nodes()
         ##########################################
 
-        # if _global._has_collection(name = _global.collection_name):
-        #     print("database has blocks previously added")
-        #     cursor = _global._return_collection_no_id(_global.db_name, _global.collection_name)
-        #     print("Retrieving blockchain from MongoDB...")
-        #     for document in cursor:
-        #         self.add_from_db(block = document)
-        # elif not self.replace_chain():
-        print("Let there be Block!!! Creating Genesis Block!!!")
-        self.create_block(previous_hash = "big_bang_minus_one")
+        if _global._has_collection(name = _global.collection_name):
+            print("database has blocks previously added")
+            cursor = _global._return_collection_no_id(_global.db_name, _global.collection_name)
+            print("Retrieving blockchain from MongoDB...")
+            for document in cursor:
+                self.add_from_db(block = document)
+        elif not self.replace_chain():
+            print("Let there be Block!!! Creating Genesis Block!!!")
+            self.create_block(previous_hash = "big_bang_minus_one")
     
     def get_all_wallets_balance_and_subtract_in_t_supply(self):
         get_all_balance = []
         try:
-            response = requests.get(_global.get_wallet_api_url).text
+            response = requests.get(_global.wallet_base_url + "get_wallets").text
             r = json.loads(response)
             for i in r['wallets']:
                 get_all_balance.append(i['balance'])
@@ -154,7 +154,7 @@ class Blockchain:
         return True
 
     def check_sender(self, sender, amount, fee, type):
-        response = requests.get(_global.get_wallet_api_url).text
+        response = requests.get(_global.wallet_base_url + "get_wallets").text
         s = json.loads(response)
         for i in s['wallets']:
             if (i['blake2b']==sender):
@@ -172,7 +172,7 @@ class Blockchain:
             return False
 
     def check_receiver(self, receiver, amount, fee, type):
-        response = requests.get(_global.get_wallet_api_url).text
+        response = requests.get(_global.wallet_base_url + "get_wallets").text
         r = json.loads(response)
         for i in r['wallets']:
             if (i['blake2b']==receiver):
@@ -207,7 +207,7 @@ class Blockchain:
                     "dest_amount": amount
                 }
                 if type != "ico":
-                    requests.post("http://127.0.0.1:6500/update_balance", json = _post)
+                    requests.post(_global.wallet_base_url + "update_balance", json = _post)
                 #return (f"Wallet {len(self.wallets)} created!")
 
                 t_timestamp = str(round(time.time()))

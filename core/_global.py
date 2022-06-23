@@ -21,7 +21,8 @@ W2_BALANCE = 0
 
 INIT_SUPPLY = (TSUPPLY - W0_BALANCE - W1_BALANCE - W2_BALANCE)
 
-get_wallet_api_url = "http://127.0.0.1:6500/get_wallets"
+wallet_base_url = "http://127.0.0.1:6500/"
+miniblock_base_url = "http://127.0.0.1:5005/"
 
 high_transaction_count = 50
 proof_speed = 400
@@ -32,7 +33,7 @@ high_transaction_count_ok_reward = 22.0
 
 uri = os.environ['MONGO_CONN_STRING']
 db_name = "testblockchain"
-collection_name = "blocks"
+collection_name = "mini-v0.2"
 
 #client = pymongo.MongoClient(uri)
 def _has_collection(name):

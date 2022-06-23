@@ -124,7 +124,7 @@ def hello():
 @app.route("/")
 def home():
     wallet_api_addr = []
-    response = requests.get(_global.get_wallet_api_url).text
+    response = requests.get(_global.wallet_base_url + "get_wallets").text
     r = json.loads(response)
     for i in r['wallets']:
         wallet_api_addr.append(i['blake2b'])
@@ -145,7 +145,7 @@ def _add_transaction():
     response = None
     
     wallet_api_addr = []
-    response = requests.get(_global.get_wallet_api_url).text
+    response = requests.get(_global.wallet_base_url + "get_wallets").text
     r = json.loads(response)
     for i in r['wallets']:
         wallet_api_addr.append(i['blake2b'])

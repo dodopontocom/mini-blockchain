@@ -6,10 +6,6 @@ import requests
 import json
 import time
 
-url_to_add_transaction = 'http://127.0.0.1:5005/add_transaction'
-set_flag = 'http://127.0.0.1:5005/set_subtract_flag'
-subtr_function_url = 'http://127.0.0.1:5005/apply_subtr_function'
-
 class Wallet:
 
     def __init__(self):
@@ -39,12 +35,12 @@ class Wallet:
         send_flag_state = {
                 "flag": True
         }
-        requests.post(set_flag, json = send_flag_state)
+        requests.post(_global.miniblock_base_url + "set_subtract_flag", json = send_flag_state)
         send_to_subtract = {
             "amount": amount,
             "fee": 0.0
         }
-        if requests.post(subtr_function_url, json = send_to_subtract):
+        if requests.post(_global.miniblock_base_url + "apply_subtr_function", json = send_to_subtract):
             self.wallets.append(
                 {
                     "blake2b": blake2b,
@@ -52,11 +48,11 @@ class Wallet:
                     "private_key": "x"
                 }
             )
-            requests.post(url_to_add_transaction, json = this_transaction)
+            requests.post(_global.miniblock_base_url + "add_transaction", json = this_transaction)
             reset_flag_state = {
                     "flag": False
             }
-            requests.post(set_flag, json = reset_flag_state)
+            requests.post(_global.miniblock_base_url + "set_subtract_flag", json = reset_flag_state)
             return (f"Wallet {len(self.wallets)} created!")
         else:
             return "Wallet not created, not funds in total supply"
