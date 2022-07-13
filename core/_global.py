@@ -31,7 +31,7 @@ ok_reward = 6.5
 high_transaction_count_good_reward = 50.0
 high_transaction_count_ok_reward = 22.0
 
-uri = os.environ['MONGO_CONN_STRING']
+#uri = os.environ['MONGO_CONN_STRING']
 db_name = "testblockchain"
 collection_name = "mini-v0.2"
 

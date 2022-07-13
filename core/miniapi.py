@@ -12,8 +12,9 @@ import requests, json
 
 startTime = time.time()
 
-template_dir = os.path.abspath('../ui/templates/blockchain')
-app = Flask(__name__, template_folder=template_dir)
+#template_dir = os.path.abspath('../ui/templates/blockchain')
+#app = Flask(__name__, template_folder=template_dir)
+app = Flask(__name__)
 #app.config["JSONIFY_PRETTYPRINT_REGULAR"] = False
 app.config["JSON_SORT_KEYS"] = True
 

@@ -1,0 +1,23 @@
+# The Cardano node service (part of systemd)
+# file: /etc/systemd/system/cardano-node.service 
+
+[Unit]
+Description     = Mini Blockchain core service
+Wants           = network-online.target
+After           = network-online.target 
+
+[Service]
+User            = ubuntu
+Type            = simple
+WorkingDirectory= /home/ubuntu/mini-blockchain
+ExecStart       = /bin/bash -c '/home/ubuntu/mini-blockchain/scripts/run-node.sh'
+KillSignal=SIGINT
+RestartKillSignal=SIGINT
+TimeoutStopSec=300
+LimitNOFILE=32768
+Restart=always
+RestartSec=5
+SyslogIdentifier=mini-node
+
+[Install]
+WantedBy	= multi-user.target

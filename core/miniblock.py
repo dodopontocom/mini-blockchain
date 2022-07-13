@@ -27,18 +27,18 @@ class Blockchain:
         self.get_all_wallets_balance_and_subtract_in_t_supply()
         
         ##########################################
-        self.connect_nodes()
+        #self.connect_nodes()
         ##########################################
 
-        if _global._has_collection(name = _global.collection_name):
-            print("database has blocks previously added")
-            cursor = _global._return_collection_no_id(_global.db_name, _global.collection_name)
-            print("Retrieving blockchain from MongoDB...")
-            for document in cursor:
-                self.add_from_db(block = document)
-        elif not self.replace_chain():
-            print("Let there be Block!!! Creating Genesis Block!!!")
-            self.create_block(previous_hash = "big_bang_minus_one")
+        #if _global._has_collection(name = _global.collection_name):
+        #    print("database has blocks previously added")
+        #    cursor = _global._return_collection_no_id(_global.db_name, _global.collection_name)
+        #    print("Retrieving blockchain from MongoDB...")
+        #    for document in cursor:
+        #        self.add_from_db(block = document)
+        #elif not self.replace_chain():
+        print("Let there be Block!!! Creating Genesis Block!!!")
+        self.create_block(previous_hash = "big_bang_minus_one")
     
     def get_all_wallets_balance_and_subtract_in_t_supply(self):
         get_all_balance = []
