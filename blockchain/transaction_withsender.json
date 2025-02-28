@@ -1,6 +1,0 @@
-    {
-        "sender": "Hingo",
-        "receiver": "John",
-        "amount": 120.5,
-        "message": "example of a transaction stating the sender"
-    }

@@ -1,0 +1,21 @@
+.card {
+    max-width: 800px;
+    margin: 0 auto;
+    box-shadow: 0 0 15px rgba(0,0,0,0.1);
+}
+
+.list-group-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.input-group {
+    margin-bottom: 1rem;
+}
+
+.text-danger {
+    color: #dc3545;
+    margin-top: 0.5rem;
+    display: block;
+}
