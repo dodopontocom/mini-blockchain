@@ -9,6 +9,7 @@ from filelock import FileLock
 NODES_FILE = "nodes_data.json"
 DATA_FILE = "blockchain_data.json"
 LOCK_FILE = "blockchain.lock"
+lock = FileLock(LOCK_FILE)
 INTERVALO_TRANSACOES = 900  # Reduzido para testes
 TAXA_BASE = 0.15
 TAXA_POR_BYTE = 0.01
@@ -20,7 +21,7 @@ class TransactionSimulator:
         self.simulation_active = True
 
     def carregar_nodes(self):
-        with FileLock(LOCK_FILE):
+        with lock:
             if not os.path.exists(NODES_FILE):
                 print("Erro: Arquivo de nós não encontrado!")
                 sys.exit(1)
@@ -29,7 +30,7 @@ class TransactionSimulator:
                 return json.load(f)
 
     def calcular_saldo_seguro(self, endereco):
-        with FileLock(LOCK_FILE):
+        with lock:
             if not os.path.exists(DATA_FILE):
                 return 100.0
             
@@ -101,7 +102,7 @@ class TransactionSimulator:
             return None
 
     def adicionar_transacao_segura(self, transacao):
-        with FileLock(LOCK_FILE):
+        with lock:
             try:
                 # Ler dados atuais
                 if os.path.exists(DATA_FILE):

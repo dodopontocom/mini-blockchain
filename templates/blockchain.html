@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>🔗 Blockchain Explorer</h2>
+    <button class="btn btn-success" onclick="minerarBloco()" id="btn-mine">
+        ⛏️ Minerar Bloco Agora
+    </button>
+</div>
+
+<div id="blockchain-container">
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Carregando...</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function carregarBlockchain() {
+        try {
+            const response = await fetch('/api/blocks');
+            const blocks = await response.json();
+            const container = document.getElementById('blockchain-container');
+            
+            if (blocks.length === 0) {
+                container.innerHTML = '<div class="alert alert-info">Nenhum bloco encontrado.</div>';
+                return;
+            }
+
+            container.innerHTML = blocks.reverse().map(block => `
+                <div class="card mb-4 shadow-sm">
+                    <div class="card-header d-flex justify-content-between align-items-center ${block.index === 0 ? 'bg-dark text-white' : 'bg-light'}">
+                        <h5 class="mb-0">Bloco #${block.index} ${block.index === 0 ? '(Gênesis)' : ''}</h5>
+                        <small class="text-muted">${new Date(block.timestamp * 1000).toLocaleString()}</small>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-1"><strong>Hash:</strong> <code class="text-break">${block.hash}</code></p>
+                        <p class="mb-3"><strong>Previous Hash:</strong> <code class="text-break">${block.previous_hash}</code></p>
+                        
+                        <h6>Transações (${block.transactions.length})</h6>
+                        <ul class="list-group list-group-flush">
+                            ${block.transactions.map(tx => `
+                                <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                    <div>
+                                        <span class="badge ${tx.sender === 'coinbase' ? 'bg-warning text-dark' : 'bg-info'} me-2">
+                                            ${tx.sender === 'coinbase' ? '🪙 Coinbase' : '💸 Transação'}
+                                        </span>
+                                        <small class="text-muted">${tx.sender.substring(0, 10)}... → ${tx.receiver.substring(0, 10)}...</small>
+                                    </div>
+                                    <span class="fw-bold text-success">+${tx.amount.toFixed(2)} BTC</span>
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                    <div class="card-footer text-muted small">
+                        Nonce: ${block.nonce} | Transações: ${block.tr_count}
+                    </div>
+                </div>
+            `).join('');
+        } catch (error) {
+            console.error('Erro ao carregar blockchain:', error);
+        }
+    }
+
+    async function minerarBloco() {
+        const btn = document.getElementById('btn-mine');
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Minerando...';
+        
+        try {
+            const response = await fetch('/mine', { method: 'POST' });
+            const result = await response.json();
+            alert(result.message);
+            carregarBlockchain();
+        } catch (error) {
+            alert('Erro ao minerar: ' + error.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '⛏️ Minerar Bloco Agora';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', carregarBlockchain);
+    // Atualiza a cada 10 segundos
+    setInterval(carregarBlockchain, 10000);
+</script>
+{% endblock %}

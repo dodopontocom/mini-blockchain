@@ -11,6 +11,7 @@ import string
 # Configurações
 DATA_FILE = "blockchain_data.json"
 LOCK_FILE = "blockchain.lock"
+lock = FileLock(LOCK_FILE)
 TAXA_BASE = 0.15
 TAXA_POR_BYTE = 0.01
 TAXA_MINIMA = 0.1
@@ -60,7 +61,7 @@ transaction_model = api.model('Transaction', {
 def carregar_nodes():
     """Carrega e valida os nós do arquivo"""
     try:
-        with FileLock(LOCK_FILE):
+        with lock:
             with open(NODES_FILE, 'r') as f:
                 nodes = json.load(f)
                 
@@ -81,7 +82,7 @@ def calcular_taxa(transaction_data):
     return max(taxa, TAXA_MINIMA)
 
 def get_blockchain_data():
-    with FileLock(LOCK_FILE):
+    with lock:
         if not os.path.exists(DATA_FILE):
             return {"chain": [], "pending_transactions": []}
         
@@ -139,7 +140,7 @@ class AddTransaction(Resource):
         }
 
         # Persistência segura
-        with FileLock(LOCK_FILE):
+        with lock:
             blockchain_data = get_blockchain_data()
             blockchain_data['pending_transactions'].append(new_transaction)
             
@@ -176,6 +177,10 @@ class Balances(Resource):
 #               FRONT-END
 # ===========================================
 @app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/carteira')
 def carteira():
     # Carrega todos os nós
     try:
@@ -195,6 +200,65 @@ def carteira():
         }
 
     return render_template('carteira.html')
+
+@app.route('/blockchain')
+def blockchain_view():
+    return render_template('blockchain.html')
+
+@app.route('/mine', methods=['POST'])
+def mine():
+    with FileLock(LOCK_FILE):
+        data = get_blockchain_data()
+        pending = data.get('pending_transactions', [])
+        
+        # Seleciona um minerador aleatório (ou o usuário logado)
+        miner_address = session.get('user', {}).get('address', '00000000')
+        
+        # Lógica simplificada de mineração para a API
+        if not data['chain']:
+            # Genesis se não existir
+            last_block_hash = "0"
+            index = 0
+        else:
+            last_block = data['chain'][-1]
+            last_block_hash = last_block['hash']
+            index = len(data['chain'])
+        
+        # Cálculo de taxas
+        total_fees = sum(tx.get('fee', 0) for tx in pending)
+        recompensa = max(total_fees, 0.5)
+        
+        # Adiciona coinbase
+        block_transactions = pending.copy()
+        block_transactions.append({
+            'sender': 'coinbase',
+            'receiver': miner_address,
+            'amount': recompensa,
+            'fee': 0.0,
+            'signature': 'mining_reward'
+        })
+        
+        new_block = {
+            'index': index,
+            'transactions': block_transactions,
+            'previous_hash': last_block_hash,
+            'nonce': random.randint(0, 1000),
+            'timestamp': float(hashlib.sha256(str(random.random()).encode()).hexdigest()[:8], 16) / 10**10, # Mock timestamp
+            'tr_count': len(block_transactions),
+            'hash': ''
+        }
+        
+        # Hash do bloco (simplificado para não travar a API)
+        block_content = json.dumps(new_block, sort_keys=True).encode()
+        new_block['hash'] = hashlib.sha256(block_content).hexdigest()
+        
+        data['chain'].append(new_block)
+        data['pending_transactions'] = []
+        
+        with open(DATA_FILE, 'w') as f:
+            json.dump(data, f, indent=4)
+            
+    return jsonify({'status': 'success', 'message': f'Bloco #{new_block["index"]} minerado!'})
 
 @app.route('/enviar-transacao', methods=['POST'])
 def enviar_transacao():

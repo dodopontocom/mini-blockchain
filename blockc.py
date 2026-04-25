@@ -22,6 +22,7 @@ TAXA_MINIMA = 0.1
 INTERVALO_MINERACAO = 5
 RECOMPENSA_VAZIO = 0.5  # Recompensa para blocos sem transações
 LOCK_FILE = "blockchain.lock"
+lock = FileLock(LOCK_FILE)
 
 class Block:
     def __init__(self, index, transactions, previous_hash, nonce, timestamp, tr_count, hash):
@@ -74,7 +75,7 @@ class Blockchain:
             self.create_genesis_block()
 
     def save_to_file(self):
-        with FileLock(LOCK_FILE):
+        with lock:
             # Manter pending_transactions atualizados
             if os.path.exists(DATA_FILE):
                 with open(DATA_FILE, 'r') as f:
@@ -101,7 +102,7 @@ class Blockchain:
         return max(taxa, TAXA_MINIMA)
 
     def add_transaction(self, sender, receiver, amount, signature):
-        with FileLock(LOCK_FILE):
+        with lock:
             # Carregar transações existentes
             if os.path.exists(DATA_FILE):
                 with open(DATA_FILE, 'r') as f:
@@ -130,7 +131,7 @@ class Blockchain:
 
     def mine_block(self, miner_address):
         # Carregar transações pendentes diretamente do arquivo
-        with FileLock(LOCK_FILE):
+        with lock:
             if os.path.exists(DATA_FILE):
                 with open(DATA_FILE, 'r') as f:
                     data = json.load(f)
@@ -189,7 +190,7 @@ class Blockchain:
 
         
         # Atualizar chain e limpar pendentes
-        with FileLock(LOCK_FILE):
+        with lock:
             self.chain.append(new_block)
             # Atualizar arquivo com pending_transactions vazio
             data = {
@@ -370,4 +371,13 @@ def show_menu():
             print("🚫 Opção inválida!")
 
 if __name__ == "__main__":
-    show_menu()
+    if sys.stdin.isatty():
+        show_menu()
+    else:
+        print("🚀 Modo serviço ativo (Auto-mining)")
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            blockchain.mining_active = False
+            blockchain.save_to_file()

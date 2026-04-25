@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 text-center mt-5">
+        <h1 class="display-4">⛓️ Mini-Blockchain Simulator</h1>
+        <p class="lead">Explore, transacione e mine blocos em um ambiente simulado.</p>
+        <hr class="my-4">
+        <div class="d-grid gap-3 d-sm-flex justify-content-sm-center">
+            <a href="{{ url_for('carteira') }}" class="btn btn-primary btn-lg px-4 gap-3">👤 Minha Carteira</a>
+            <a href="{{ url_for('blockchain_view') }}" class="btn btn-outline-secondary btn-lg px-4">🔗 Ver Blockchain</a>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-5">
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">💸 Transações</h5>
+                <p class="card-text">Envie BTC simulados para outros participantes da rede de forma segura.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">⛏️ Mineração</h5>
+                <p class="card-text">O sistema minera blocos automaticamente, mas você também pode forçar a mineração.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">📊 Explorer</h5>
+                <p class="card-text">Visualize todos os blocos, hashes e transações confirmadas na rede.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
