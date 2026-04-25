@@ -1,3 +1,4 @@
 *.json
 *.lock
-__pycache__/
+__pycache__/.trae/rules/caveman.md
+venv/
