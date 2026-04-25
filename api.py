@@ -302,6 +302,9 @@ def enviar_transacao():
             json=transacao
         )
 
+        if response.status_code == 201:
+            return {'status': 'success', 'message': 'Transação enviada!'}, 201
+        
         return response.json(), response.status_code
 
     except Exception as e:

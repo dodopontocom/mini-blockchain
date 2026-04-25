@@ -39,19 +39,37 @@
                         <p class="mb-3"><strong>Previous Hash:</strong> <code class="text-break">${block.previous_hash}</code></p>
                         
                         <h6>Transações (${block.transactions.length})</h6>
-                        <ul class="list-group list-group-flush">
-                            ${block.transactions.map(tx => `
-                                <li class="list-group-item d-flex justify-content-between align-items-center px-0">
-                                    <div>
-                                        <span class="badge ${tx.sender === 'coinbase' ? 'bg-warning text-dark' : 'bg-info'} me-2">
-                                            ${tx.sender === 'coinbase' ? '🪙 Coinbase' : '💸 Transação'}
-                                        </span>
-                                        <small class="text-muted">${tx.sender.substring(0, 10)}... → ${tx.receiver.substring(0, 10)}...</small>
+                        <div class="list-group list-group-flush">
+                            ${block.transactions.map((tx, txIndex) => `
+                                <div class="list-group-item px-0 border-0">
+                                    <div class="d-flex justify-content-between align-items-center cursor-pointer" 
+                                         data-bs-toggle="collapse" 
+                                         data-bs-target="#tx-detail-${block.index}-${txIndex}"
+                                         style="cursor: pointer;">
+                                        <div>
+                                            <span class="badge ${tx.sender === 'coinbase' ? 'bg-warning text-dark' : 'bg-info'} me-2">
+                                                ${tx.sender === 'coinbase' ? '🪙 Coinbase' : '💸 Transação'}
+                                            </span>
+                                            <small class="text-muted">${tx.sender.substring(0, 10)}... → ${tx.receiver.substring(0, 10)}...</small>
+                                        </div>
+                                        <div class="d-flex align-items-center">
+                                            <span class="fw-bold text-success me-2">+${tx.amount.toFixed(2)} BTC</span>
+                                            <button class="btn btn-sm btn-link p-0 text-decoration-none">Detalhes ▼</button>
+                                        </div>
                                     </div>
-                                    <span class="fw-bold text-success">+${tx.amount.toFixed(2)} BTC</span>
-                                </li>
+                                    
+                                    <div class="collapse mt-2" id="tx-detail-${block.index}-${txIndex}">
+                                        <div class="card card-body bg-light border-0 small">
+                                            <div class="mb-1"><strong>Remetente:</strong> <code class="text-break">${tx.sender}</code></div>
+                                            <div class="mb-1"><strong>Destinatário:</strong> <code class="text-break">${tx.receiver}</code></div>
+                                            <div class="mb-1"><strong>Valor:</strong> ${tx.amount.toFixed(8)} BTC</div>
+                                            <div class="mb-1"><strong>Taxa:</strong> ${tx.fee ? tx.fee.toFixed(8) : '0.00000000'} BTC</div>
+                                            <div><strong>Assinatura:</strong> <code class="text-break">${tx.signature}</code></div>
+                                        </div>
+                                    </div>
+                                </div>
                             `).join('')}
-                        </ul>
+                        </div>
                     </div>
                     <div class="card-footer text-muted small">
                         Nonce: ${block.nonce} | Transações: ${block.tr_count}
