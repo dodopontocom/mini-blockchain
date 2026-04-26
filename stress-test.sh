@@ -1,41 +1,35 @@
 #!/usr/bin/env bash
 # ================================================
-#  🔥 stress-test.sh — Saturação Concorrente
-#  Objetivo: Gerar carga máxima no Runner
+#  🔥 stress-test-v2.sh — Saturação de Alta Performance
 # ================================================
 
-PORT=5000
-API_URL="http://localhost:$PORT"
-CONCURRENCY=5 # Número de workers paralelos
-TX_PER_WORKER=50 # Transações por worker
+API_URL="http://localhost:5000"
+NODES_FILE="nodes_data.json"
+
+# Pega dois endereços reais para evitar falhas de validação
+SENDER=$(jq -r '.Alice.address' $NODES_FILE)
+RECEIVER=$(jq -r '.Bob.address' $NODES_FILE)
+CONTRACT=$(jq -r '.contracts | keys[0]' blockchain_data.json 2>/dev/null || echo "98c5886478cf32c1d185f93551a42ba2860d1df5")
 
 step() { echo -e "\e[36m[STRESS]\e[0m $1"; }
 
-# Função worker para inundar a API
-flood_worker() {
-    local worker_id=$1
-    for ((i=1; i<=TX_PER_WORKER; i++)); do
-        # Gera transação aleatória ultra-rápida
-        curl -s -X POST "$API_URL/api/enviar-transacao" \
-            -d "receiver=8e03de2a914796a7742c7e43969ebcc11db47e0a58ba4ad7bac3ed95ca66f188fb06c04ddfd1384c34f87da386a0572c2609cc561befbcf9e1d4f11b1efe7546" \
-            -d "amount=0.001" \
-            -o /dev/null
-        
-        # A cada 10 transações, faz uma chamada de contrato para estressar a VM
-        if (( i % 10 == 0 )); then
-            curl -s -X POST "$API_URL/api/add-transaction" \
-                -H "Content-Type: application/json" \
-                -d '{"sender":"coinbase","receiver":"98c5886478cf32c1d185f93551a42ba2860d1df5","amount":0,"type":"call","data":{"key":"stress","val":"'$worker_id-$i'"},"signature":"sig"}' \
-                -o /dev/null
-        fi
-    done
-}
+# Payload de transação pura
+TX_PAYLOAD=$(jq -n --arg s "$SENDER" --arg r "$RECEIVER" '{sender: $s, receiver: $r, amount: 0.0001, signature: "stress_test_sig"}')
 
-step "Iniciando estresse com $CONCURRENCY workers enviando $(($CONCURRENCY * $TX_PER_WORKER)) operações..."
+# Payload de chamada de contrato
+CALL_PAYLOAD=$(jq -n --arg s "$SENDER" --arg r "$CONTRACT" '{sender: $s, receiver: $r, amount: 0, type: "call", data: {key: "load", val: "heavy"}, signature: "stress_sig"}')
 
-for ((w=1; w<=CONCURRENCY; w++)); do
-    flood_worker $w &
-done
+step "Iniciando inundação da API..."
+
+# Dispara 200 transações em lotes de 20 simultâneas usando xargs
+seq 200 | xargs -I % -P 20 curl -s -X POST "$API_URL/api/add-transaction" \
+    -H "Content-Type: application/json" \
+    -d "$TX_PAYLOAD" > /dev/null &
+
+# Dispara 50 chamadas de contrato simultâneas
+seq 50 | xargs -I % -P 10 curl -s -X POST "$API_URL/api/add-transaction" \
+    -H "Content-Type: application/json" \
+    -d "$CALL_PAYLOAD" > /dev/null &
 
 wait
-step "Rajada de estresse concluída."
+step "Rajada concluída com sucesso."
