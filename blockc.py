@@ -156,19 +156,22 @@ class Blockchain:
                     pending = data.get('pending_transactions', [])
             else: pending = []
 
+        if not pending: return
+
+        # Limita a 200 transações por bloco para manter a eficiência sob estresse
+        batch = pending[:200]
+        remaining = pending[200:]
+
         # Processa contratos antes de fechar o bloco
-        if pending:
-            self.process_contracts(pending)
+        self.process_contracts(batch)
         
         # Coinbase
-        total_fees = sum(tx.get('fee', 0) for tx in pending)
-        recompensa = 0.5 + total_fees
-        
-        block_transactions = pending.copy()
+        total_fees = sum(tx.get('fee', 0) for tx in batch)
+        block_transactions = batch.copy()
         block_transactions.append({
             'sender': 'coinbase',
             'receiver': miner_address,
-            'amount': recompensa,
+            'amount': 0.5 + total_fees,
             'type': 'reward',
             'signature': 'mining_reward'
         })
@@ -189,9 +192,9 @@ class Blockchain:
             new_block.hash = self.compute_hash(new_block)
 
         self.chain.append(new_block)
-        self.pending_transactions = []
+        self.pending_transactions = remaining
         self.save_to_file()
-        print(f"📦 Bloco #{new_block.index} minerado!")
+        print(f"📦 Bloco #{new_block.index} minerado com {len(batch)} transações!")
 
     def start_auto_mining(self):
         def loop():

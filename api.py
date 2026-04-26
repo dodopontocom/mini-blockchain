@@ -165,31 +165,29 @@ class AddTransaction(Resource):
             'fee': fee
         }
 
-        # Verificação de saldo
+        # Verificação de saldo otimizada
         with lock:
             blockchain_data = get_blockchain_data()
             
-            # Reutiliza lógica de cálculo de saldo (simplificada para o sender)
-            balances = {}
-            INITIAL_BALANCE = 100.0
+            # Cálculo de saldo simplificado apenas para o sender atual
+            current_balance = 100.0 # Saldo inicial
+            s = new_transaction['sender']
+            
             for block in blockchain_data['chain']:
                 for tx in block['transactions']:
-                    if tx['sender'] not in balances: balances[tx['sender']] = INITIAL_BALANCE
-                    if tx['receiver'] not in balances: balances[tx['receiver']] = INITIAL_BALANCE
-                    if tx['sender'] != 'coinbase':
-                        balances[tx['sender']] -= tx['amount'] + tx.get('fee', 0)
-                    balances[tx['receiver']] += tx['amount']
+                    if tx['sender'] == s:
+                        current_balance -= (tx['amount'] + tx.get('fee', 0))
+                    if tx['receiver'] == s:
+                        current_balance += tx['amount']
             
             for tx in blockchain_data.get('pending_transactions', []):
-                if tx['sender'] not in balances: balances[tx['sender']] = INITIAL_BALANCE
-                if tx['sender'] != 'coinbase':
-                    balances[tx['sender']] -= tx['amount'] + tx.get('fee', 0)
+                if tx['sender'] == s:
+                    current_balance -= (tx['amount'] + tx.get('fee', 0))
 
-            current_balance = balances.get(new_transaction['sender'], INITIAL_BALANCE)
             total_cost = new_transaction['amount'] + new_transaction['fee']
 
             if total_cost > current_balance:
-                return {"message": f"Saldo insuficiente! Disponível: {current_balance:.2f}, Necessário: {total_cost:.2f}"}, 400
+                return {"message": f"Saldo insuficiente! Disponível: {current_balance:.2f}"}, 400
 
             blockchain_data['pending_transactions'].append(new_transaction)
             
@@ -404,4 +402,4 @@ def enviar_transacao():
 #               INICIALIZAÇÃO
 # ===========================================
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=False, port=5000, threaded=True)
