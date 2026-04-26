@@ -230,12 +230,29 @@ class Balances(Resource):
         
         return balances
 
+@api.route('/contracts')
+class Contracts(Resource):
+    @api.doc(description='Retorna todos os contratos (código e estado)')
+    def get(self):
+        with lock:
+            if not os.path.exists(DATA_FILE): return {}
+            with open(DATA_FILE, 'r') as f:
+                data = json.load(f)
+                return {
+                    "contracts": data.get('contracts', {}),
+                    "states": data.get('state', {})
+                }
+
 # ===========================================
 #               FRONT-END
 # ===========================================
 @app.route('/')
 def index():
     return render_template('index.html')
+
+@app.route('/contratos')
+def contratos_view():
+    return render_template('contratos.html')
 
 @app.route('/carteira')
 def carteira():
