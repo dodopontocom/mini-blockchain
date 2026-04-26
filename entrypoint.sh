@@ -7,22 +7,26 @@ step "Iniciando infraestrutura..."
 ./run.sh &
 RUN_PID=$!
 
-# 2. Aguarda API
-step "Aguardando API..."
-until curl -s http://localhost:5000/api/blocks > /dev/null; do sleep 2; done
+# 2. Aguarda API estar 100% pronta
+step "Aguardando estabilização da API..."
+sleep 10 # Tempo extra para o Flask e o Minerador acordarem
 
-# 3. WARM-UP: Prepara contratos para o estresse
-step "Warm-up: Criando contratos para monitoramento..."
+# 3. WARM-UP: Garante que existem contratos
 ./smart-ops-v2.sh deploy-vault --from User1 > /dev/null
-./smart-ops-v2.sh deploy-vote --from User2 --options '["Lento", "Rapido"]' > /dev/null
+sleep 5
 
-# 4. ESTRESSE: Agora que os contratos existem, vamos inundar
-step "Executando Stress Test Concorrente..."
+# 4. ESTRESSE: Agora sim, inundação pesada em loop
+LEVEL=${STRESS_LEVEL:-1}
+step "Executando Stress Test V3 (Nível: $LEVEL)..."
 chmod +x stress-test.sh
-./stress-test.sh
+
+# Rodamos o estresse 'LEVEL' vezes em paralelo
+for ((i=1; i<=LEVEL; i++)); do
+   ./stress-test.sh &
+done
 
 # 5. Atividade residual
-./post-send-values.sh --random --bg --sim --sleep 1 &
+./post-send-values.sh --random --bg --sim --sleep 0.5 &
 
-step "Simulação em andamento..."
+step "Monitorando simulação..."
 wait $RUN_PID

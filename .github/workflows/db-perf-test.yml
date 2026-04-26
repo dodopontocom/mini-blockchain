@@ -7,6 +7,10 @@ on:
         description: 'Duração do teste em segundos'
         required: true
         default: '120'
+      stress_level:
+        description: 'Nível de estresse (número de workers paralelos)'
+        required: true
+        default: '5'
 
 jobs:
   run-perf-test:
@@ -25,7 +29,8 @@ jobs:
           IMAGE_NAME="ghcr.io/${{ github.repository }}:latest"
           docker pull $IMAGE_NAME
           
-          docker run -d --name db-node -p 5000:5000 $IMAGE_NAME
+          # Passa o nível de estresse via variável de ambiente
+          docker run -d --name db-node -p 5000:5000 -e STRESS_LEVEL=${{ github.event.inputs.stress_level }} $IMAGE_NAME
           
           echo "🚀 Monitorando atividade por ${{ github.event.inputs.duration }} segundos..."
           DURATION=${{ github.event.inputs.duration }}
