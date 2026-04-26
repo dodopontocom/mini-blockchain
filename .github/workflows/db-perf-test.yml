@@ -6,8 +6,8 @@ on:
     paths:
       - 'infra/Dockerfile'
       - 'requirements.txt'
-      - 'src/**.py'
-      - 'infra/scripts/**.sh'
+      - 'src/**'
+      - 'infra/scripts/**'
       - '.github/workflows/image-build.yml'
   workflow_dispatch:
     inputs:
@@ -34,8 +34,8 @@ jobs:
             docker:
               - 'infra/Dockerfile'
               - 'requirements.txt'
-              - 'src/**.py'
-              - 'infra/scripts/**.sh'
+              - 'src/**'
+              - 'infra/scripts/**'
               - '.github/workflows/image-build.yml'
 
   build-image:

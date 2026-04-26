@@ -3,6 +3,12 @@ name: Docker Build and Publish
 on:
   push:
     branches: [ "main" ]
+    paths:
+      - 'infra/Dockerfile'
+      - 'requirements.txt'
+      - 'src/**'
+      - 'infra/scripts/**'
+      - '.github/workflows/image-build.yml'
   workflow_dispatch:
   workflow_call:
 
