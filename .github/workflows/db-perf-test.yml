@@ -83,14 +83,37 @@ jobs:
           
           echo "✅ Tempo de simulação atingido!"
           
-          # Captura dados
+          # Captura dados avançados
           TOTAL_BLOCKS=$(docker exec db-node curl -s http://localhost:5000/api/blocks | jq '. | length')
           TOTAL_DATA=$(docker exec db-node curl -s http://localhost:5000/api/blocks | jq '[.[].transactions | length] | add')
+          TOTAL_NODES=$(docker exec db-node curl -s http://localhost:5000/api/balances | jq 'keys | length')
           THROUGHPUT=$(echo "scale=2; $TOTAL_DATA / $DURATION" | bc)
           
-          echo "### 📊 Performance Report" >> $GITHUB_STEP_SUMMARY
-          echo "- **Data Records Processed:** $TOTAL_DATA" >> $GITHUB_STEP_SUMMARY
-          echo "- **Throughput:** $THROUGHPUT ops/s" >> $GITHUB_STEP_SUMMARY
-          echo "- **Ledger Height:** $TOTAL_BLOCKS" >> $GITHUB_STEP_SUMMARY
+          # Gerando Sumário Bonito
+          echo "## 📊 Database Performance Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ⚙️ Test Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "| Parameter | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "| :--- | :--- |" >> $GITHUB_STEP_SUMMARY
+          echo "| ⏱️ Duration | ${DURATION}s |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔥 Stress Level | $STRESS |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🐳 Image | \`$IMAGE_NAME\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### 📈 Results" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "| :--- | :--- |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📝 Total Transactions | **$TOTAL_DATA** |" >> $GITHUB_STEP_SUMMARY
+          echo "| ⚡ Throughput | **$THROUGHPUT tx/s** |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📦 Ledger Height | **$TOTAL_BLOCKS** blocks |" >> $GITHUB_STEP_SUMMARY
+          echo "| 👥 Active Wallets | **$TOTAL_NODES** |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "### 🧪 Health Check" >> $GITHUB_STEP_SUMMARY
+          if [ "$TOTAL_DATA" -gt 0 ]; then
+            echo "✅ **Success:** Transactions processed correctly." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Failure:** No transactions recorded during the test." >> $GITHUB_STEP_SUMMARY
+          fi
           
           docker stop db-node

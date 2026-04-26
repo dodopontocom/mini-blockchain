@@ -15,18 +15,20 @@ sleep 10 # Tempo extra para o Flask e o Minerador acordarem
 ./infra/scripts/smart-ops-v2.sh deploy-vault --from User1 > /dev/null
 sleep 5
 
-# 4. ESTRESSE: Agora sim, inundação pesada em loop
+# 4. ESTRESSE: Agora sim, inundação pesada e aleatória
 LEVEL=${STRESS_LEVEL:-1}
-step "Executando Stress Test V3 (Nível: $LEVEL)..."
+BG_VAL=$(( LEVEL * 10 ))
+SIM_VAL=$(( LEVEL * 100 ))
+
+step "Executando Stress Test Engine (Nível: $LEVEL | BG: $BG_VAL | SIM: $SIM_VAL)..."
 chmod +x infra/scripts/stress-test.sh
 
-# Rodamos o estresse 'LEVEL' vezes em paralelo
-for ((i=1; i<=LEVEL; i++)); do
-   ./infra/scripts/stress-test.sh &
-done
+# Executa o estresse em background para permitir monitoramento
+./infra/scripts/stress-test.sh --random --bg "$BG_VAL" --sim "$SIM_VAL" &
+STRESS_PID=$!
 
-# 5. Atividade residual
-./infra/scripts/post-send-values.sh --random --bg --sim --sleep 0.5 &
+# 5. Atividade residual contínua
+./infra/scripts/post-send-values.sh --random --bg 2 --sim 9999 --sleep 1 &
 
 step "Monitorando simulação..."
 wait $RUN_PID
