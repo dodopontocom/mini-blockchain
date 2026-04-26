@@ -1,0 +1,41 @@
+name: Database Performance Simulation
+
+on:
+  workflow_dispatch:
+    inputs:
+      duration:
+        description: 'Duração do teste em segundos'
+        required: true
+        default: '120'
+
+jobs:
+  run-perf-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Log in to the Container registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull and Run DB Simulation
+        run: |
+          IMAGE_NAME="ghcr.io/${{ github.repository }}:latest"
+          docker pull $IMAGE_NAME
+          
+          docker run -d --name db-node -p 5000:5000 $IMAGE_NAME
+          sleep ${{ github.event.inputs.duration }}
+          
+          # Captura dados
+          TOTAL_BLOCKS=$(docker exec db-node curl -s http://localhost:5000/api/blocks | jq '. | length')
+          TOTAL_DATA=$(docker exec db-node curl -s http://localhost:5000/api/blocks | jq '[.[].transactions | length] | add')
+          THROUGHPUT=$(echo "scale=2; $TOTAL_DATA / ${{ github.event.inputs.duration }}" | bc)
+          
+          echo "### 📊 Performance Report" >> $GITHUB_STEP_SUMMARY
+          echo "- **Data Records Processed:** $TOTAL_DATA" >> $GITHUB_STEP_SUMMARY
+          echo "- **Throughput:** $THROUGHPUT ops/s" >> $GITHUB_STEP_SUMMARY
+          echo "- **Ledger Height:** $TOTAL_BLOCKS" >> $GITHUB_STEP_SUMMARY
+          
+          docker stop db-node
