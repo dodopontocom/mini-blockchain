@@ -52,6 +52,8 @@ transaction_model = api.model('Transaction', {
     'sender': fields.String(required=True),
     'receiver': fields.String(required=True),
     'amount': fields.Float(required=True),
+    'type': fields.String(description='transfer, deploy, call'),
+    'data': fields.Raw(description='Código do contrato ou parâmetros da chamada'),
     'fee': fields.Float,
     'signature': fields.String(required=True)
 })
@@ -93,6 +95,15 @@ def get_blockchain_data():
 # ===========================================
 #               ENDPOINTS DA API
 # ===========================================
+@api.route('/state')
+class State(Resource):
+    @api.doc(description='Retorna o estado global de todos os Smart Contracts')
+    def get(self):
+        with lock:
+            if not os.path.exists(DATA_FILE): return {}
+            with open(DATA_FILE, 'r') as f:
+                return json.load(f).get('state', {})
+
 @api.route('/blocks')
 class Blocks(Resource):
     @api.doc(description='Lista todos os blocos da blockchain')
@@ -131,17 +142,14 @@ class AddTransaction(Resource):
         if not all(field in data for field in required_fields):
             return {"message": "Campos obrigatórios faltando"}, 400
 
-        # Validação do destinatário no nodes_data.json
-        nodes = carregar_nodes()
-        if not any(node['address'] == data['receiver'] for node in nodes.values()):
-            return {"message": f"Destinatário inválido: {data['receiver']}"}, 400
-
         # Cria transação completa com hash e timestamp
         timestamp = time.time()
         tx_base = {
             'sender': data['sender'],
             'receiver': data['receiver'],
             'amount': data['amount'],
+            'type': data.get('type', 'transfer'),
+            'data': data.get('data'),
             'signature': data['signature'],
             'timestamp': timestamp
         }

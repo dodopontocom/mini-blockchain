@@ -88,7 +88,7 @@ echo ""
 cleanup() {
   echo ""
   echo -e "${YELLOW}Encerrando...${RESET}"
-  kill "$BLOCKC_PID" "$API_PID" 2>/dev/null || true
+  kill "$BLOCKC_PID" "$API_PID" "$SIM_PID" 2>/dev/null || true
   deactivate 2>/dev/null || true
 }
 trap cleanup EXIT INT TERM
@@ -107,6 +107,12 @@ API_PID=$!
 sleep 2
 kill -0 "$API_PID" 2>/dev/null && ok "api.py rodando (PID $API_PID)" || die "api.py falhou ao iniciar"
 
+# sobe simulador em background
+step "Iniciando simulador de transações..."
+python simulations.py &
+SIM_PID=$!
+ok "simulations.py rodando (PID $SIM_PID)"
+
 # ── Validação HTTP ─────────────────────────────
 step "Validando porta $PORT..."
 sleep 1
@@ -121,7 +127,8 @@ echo -e "${BOLD}✅ Pronto!${RESET}"
 echo -e "   ${CYAN}UI:${RESET}     http://localhost:$PORT"
 echo -e "   ${CYAN}Swagger:${RESET} http://localhost:$PORT/api/docs"
 echo -e "   ${CYAN}Mining:${RESET}  watch o terminal do blockc.py"
+echo -e "   ${CYAN}Simulador:${RESET} ativo"
 echo ""
 
 # mantém vivo até Ctrl+C
-wait "$BLOCKC_PID" "$API_PID"
+wait "$BLOCKC_PID" "$API_PID" "$SIM_PID"
