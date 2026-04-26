@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ================================================
-#  🪨 post-send-values.sh — send BTC script
-#  Supports aliases, named arguments, and random mode
+#  🪨 post-send-values.sh — parallelism edition
+#  Supports concurrent background workers
 # ================================================
 
 set -euo pipefail
@@ -26,19 +26,18 @@ die()  { echo -e "${RED}✗ ERROR: $1${RESET}" >&2; exit 1; }
 
 usage() {
   echo -e "${BOLD}Usage:${RESET}"
-  echo -e "  $0 --amount <val> [--sim <n>] [--sleep <sec>] [--from <name|addr>] [--dest <name|addr>]"
-  echo -e "  $0 --random [--sim <n>] [--sleep <sec>]"
+  echo -e "  $0 --amount <val> [--sim <n>] [--sleep <sec>] [--from <name|addr>] [--dest <name|addr>] [--bg <n>]"
+  echo -e "  $0 --random [--sim <n>] [--sleep <sec>] [--bg <n>]"
   echo ""
   echo -e "${BOLD}Options:${RESET}"
-  echo -e "  --amount : Value to send (required if not --random)"
-  echo -e "  --random : Auto-select sender, receiver, and realistic amount"
-  echo -e "  --sim    : Number of transactions (default: 1)"
-  echo -e "  --sleep  : Seconds between transactions (default: 0)"
-  echo -e "  --from   : Sender alias or address (default: Eve)"
-  echo -e "  --dest   : Receiver alias or address (default: random)"
+  echo -e "  --amount : Value to send"
+  echo -e "  --random : Auto-select everything"
+  echo -e "  --bg     : Parallel workers (default: 1)"
+  echo -e "  --sim    : Total transactions (default: 1)"
+  echo -e "  --sleep  : Seconds between bursts (default: 0)"
   echo ""
   echo -e "${CYAN}Example:${RESET}"
-  echo -e "  $0 --random --sim 10 --sleep 1"
+  echo -e "  $0 --bg 3 --sim 9 --sleep 2  # 3 bursts of 3 transactions"
   exit 1
 }
 
@@ -49,6 +48,7 @@ SLEEP_TIME=0
 FROM_VAL="Eve"
 DEST_VAL=""
 RANDOM_MODE=false
+BG_LIMIT=1
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -59,128 +59,112 @@ while [[ $# -gt 0 ]]; do
     --from)   FROM_VAL="$2"; shift 2 ;;
     --dest)   DEST_VAL="$2"; shift 2 ;;
     --random) RANDOM_MODE=true; shift ;;
+    --bg)     BG_LIMIT="$2"; shift 2 ;;
     *) usage ;;
   esac
 done
 
+# Auto-random if --bg is used without amount
+[[ -z "$AMOUNT" && "$RANDOM_MODE" == "false" && "$BG_LIMIT" -gt 1 ]] && RANDOM_MODE=true
 [[ -z "$AMOUNT" && "$RANDOM_MODE" == "false" ]] && usage
 
-# Resolve address helper
+# Helper: Resolve address
 resolve_address() {
   local val="$1"
-  local type="$2"
   local addr=$(jq -r ".\"$val\".address // \"null\"" "$NODES_FILE")
-  if [[ "$addr" != "null" ]]; then
-    echo "$addr"
-    return 0
-  fi
+  if [[ "$addr" != "null" ]]; then echo "$addr"; return 0; fi
   local exists=$(jq -r ".[] | select(.address == \"$val\") | .address" "$NODES_FILE" | head -n 1)
   [[ -n "$exists" ]] && { echo "$val"; return 0; }
-  die "Invalid $type: '$val' is not in $NODES_FILE"
+  die "Invalid address: '$val'"
 }
 
-# Checks
+# Pre-checks
 command -v jq >/dev/null 2>&1 || die "jq required."
-command -v curl >/dev/null 2>&1 || die "curl required."
 [[ ! -f "$NODES_FILE" ]] && die "$NODES_FILE not found."
+if ! curl -s --max-time 2 "$API_URL/api/blocks" >/dev/null; then die "API offline."; fi
 
-# Resolve static sender if not in random mode
+# Static sender resolve
 SENDER_ADDR=""
-if [[ "$RANDOM_MODE" == "false" ]]; then
-  SENDER_ADDR=$(resolve_address "$FROM_VAL" "Sender")
-fi
-
-# API Check
-if ! curl -s --max-time 2 "$API_URL/api/blocks" >/dev/null; then
-  die "API not responding at $API_URL"
-fi
+[[ "$RANDOM_MODE" == "false" ]] && SENDER_ADDR=$(resolve_address "$FROM_VAL")
 
 MODO_STR="MANUAL"
 [[ "$RANDOM_MODE" == "true" ]] && MODO_STR="RANDOM"
-step "Starting session: $MODO_STR MODE ($SIM transactions)"
+step "Starting: $MODO_STR MODE | $SIM total | $BG_LIMIT concurrent"
 
-for (( i=1; i<=SIM; i++ )); do
-  echo "────────────────────────────────────────────"
-  step "Transaction $i of $SIM"
+# ---------------------------------------------------------
+# TRANSACTION WORKER FUNCTION
+# ---------------------------------------------------------
+run_tx() {
+  local id="$1"
+  local prefix="${BOLD}[Job $id]${RESET}"
 
-  # 1. Determine Sender
+  # 1. Determine participants
+  local cur_from_name="$FROM_VAL"
+  local cur_from_addr="$SENDER_ADDR"
   if [[ "$RANDOM_MODE" == "true" ]]; then
-    NODES_LIST=$(jq -c "to_entries" "$NODES_FILE")
-    COUNT=$(echo "$NODES_LIST" | jq '. | length')
-    IDX=$(( RANDOM % COUNT ))
-    CUR_FROM_NAME=$(echo "$NODES_LIST" | jq -r ".[$IDX].key")
-    CUR_FROM_ADDR=$(echo "$NODES_LIST" | jq -r ".[$IDX].value.address")
-  else
-    CUR_FROM_NAME="$FROM_VAL"
-    CUR_FROM_ADDR="$SENDER_ADDR"
+    local nodes_list=$(jq -c "to_entries" "$NODES_FILE")
+    local count=$(echo "$nodes_list" | jq '. | length')
+    local idx=$(( RANDOM % count ))
+    cur_from_name=$(echo "$nodes_list" | jq -r ".[$idx].key")
+    cur_from_addr=$(echo "$nodes_list" | jq -r ".[$idx].value.address")
   fi
 
-  # 2. Determine Receiver
+  local cur_dest_name="$DEST_VAL"
+  local cur_dest_addr=""
   if [[ -z "$DEST_VAL" || "$RANDOM_MODE" == "true" ]]; then
-    RECIPIENTS_JSON=$(jq -c "to_entries | map(select(.value.address != \"$CUR_FROM_ADDR\"))" "$NODES_FILE")
-    COUNT=$(echo "$RECIPIENTS_JSON" | jq '. | length')
-    [[ "$COUNT" -eq 0 ]] && die "No other recipients found."
-    IDX=$(( RANDOM % COUNT ))
-    CUR_DEST_NAME=$(echo "$RECIPIENTS_JSON" | jq -r ".[$IDX].key")
-    CUR_DEST_ADDR=$(echo "$RECIPIENTS_JSON" | jq -r ".[$IDX].value.address")
+    local rec_json=$(jq -c "to_entries | map(select(.value.address != \"$cur_from_addr\"))" "$NODES_FILE")
+    local count=$(echo "$rec_json" | jq '. | length')
+    local idx=$(( RANDOM % count ))
+    cur_dest_name=$(echo "$rec_json" | jq -r ".[$idx].key")
+    cur_dest_addr=$(echo "$rec_json" | jq -r ".[$idx].value.address")
   else
-    CUR_DEST_NAME="$DEST_VAL"
-    CUR_DEST_ADDR=$(resolve_address "$DEST_VAL" "Receiver")
+    cur_dest_addr=$(resolve_address "$DEST_VAL")
   fi
 
-  # 3. Determine Amount & Balance
-  BALANCES=$(curl -s "$API_URL/api/balances")
-  CUR_BAL=$(echo "$BALANCES" | jq -r ".\"$CUR_FROM_ADDR\" // 100.0")
-  
-  CUR_AMOUNT="$AMOUNT"
-  if [[ -z "$CUR_AMOUNT" ]]; then
-    # Realistic: 0.1 to 5% of balance
-    CUR_AMOUNT=$(python3 -c "import random; b=float($CUR_BAL); print(round(random.uniform(0.1, max(0.2, b * 0.05)), 4))")
-  fi
+  # 2. Balance & Amount
+  local balances=$(curl -s "$API_URL/api/balances")
+  local cur_bal=$(echo "$balances" | jq -r ".\"$cur_from_addr\" // 100.0")
+  local cur_amt="$AMOUNT"
+  [[ -z "$cur_amt" ]] && cur_amt=$(python3 -c "import random; b=float($cur_bal); print(round(random.uniform(0.1, max(0.2, b * 0.05)), 4))")
 
-  # 4. Fee & Cost
-  FEE=$(python3 -c "import json; d={'sender':'$CUR_FROM_ADDR','receiver':'$CUR_DEST_ADDR','amount':$CUR_AMOUNT}; print(max(0.15 + 0.01 * len(json.dumps(d)), 0.1))")
-  TOTAL_COST=$(python3 -c "print(round($CUR_AMOUNT + $FEE, 4))")
-  
-  step "From: $CUR_FROM_NAME"
-  step "Target: $CUR_DEST_NAME"
-  step "Balance: $CUR_BAL BTC"
-  step "Cost: $CUR_AMOUNT + $FEE (fee) = $TOTAL_COST BTC"
+  # 3. Fee & Cost
+  local fee=$(python3 -c "import json; d={'sender':'$cur_from_addr','receiver':'$cur_dest_addr','amount':$cur_amt}; print(max(0.15 + 0.01 * len(json.dumps(d)), 0.1))")
+  local total=$(python3 -c "print(round($cur_amt + $fee, 4))")
 
-  # 5. Validation
-  IS_OK=$(python3 -c "print(1 if float($TOTAL_COST) <= float($CUR_BAL) else 0)")
-  if [[ "$IS_OK" -eq 0 ]]; then
-    warn "Insufficient balance! Skipping."
-    continue
-  fi
-
-  # 6. Post
-  PAYLOAD=$(jq -n \
-    --arg s "$CUR_FROM_ADDR" \
-    --arg r "$CUR_DEST_ADDR" \
-    --arg n "$CUR_AMOUNT" \
-    --arg sig "$SIGNATURE" \
-    '{sender: $s, receiver: $r, amount: ($n|tonumber), signature: $sig}')
-
-  RESPONSE=$(curl -s -X POST "$API_URL/api/add-transaction" \
-    -H "Content-Type: application/json" \
-    -d "$PAYLOAD")
-
-  if echo "$RESPONSE" | grep -q "sucesso"; then
-    TXID=$(echo "$RESPONSE" | jq -r '.transaction.tx_hash // "N/A"')
-    ok "Success: $CUR_FROM_NAME -> $CUR_DEST_NAME"
-    [[ "$TXID" != "N/A" ]] && step "TXID: $TXID"
+  # 4. Check & Send
+  if (( $(python3 -c "print(1 if float($total) <= float($cur_bal) else 0)") )); then
+    local payload=$(jq -n --arg s "$cur_from_addr" --arg r "$cur_dest_addr" --arg n "$cur_amt" --arg sig "$SIGNATURE" \
+      '{sender: $s, receiver: $r, amount: ($n|tonumber), signature: $sig}')
+    
+    local resp=$(curl -s -X POST "$API_URL/api/add-transaction" -H "Content-Type: application/json" -d "$payload")
+    
+    if echo "$resp" | grep -q "sucesso"; then
+      local txid=$(echo "$resp" | jq -r '.transaction.tx_hash // "N/A"')
+      echo -e "$prefix ${GREEN}✓${RESET} $cur_from_name -> $cur_dest_name ($cur_amt BTC) | TXID: ${txid:0:16}..." >&2
+    else
+      echo -e "$prefix ${RED}✗${RESET} Failed: $resp" >&2
+    fi
   else
-    warn "Failed: $RESPONSE"
+    echo -e "$prefix ${YELLOW}⚠${RESET} Insufficient balance ($cur_from_name: $cur_bal)" >&2
   fi
+}
 
-  # Sleep
-  if [[ $i -lt $SIM ]]; then
-    # Use python to check if sleep > 0 and perform it
-    python3 -c "import time; t=$SLEEP_TIME; t > 0 and time.sleep(t)"
-    [[ $(python3 -c "print(1 if $SLEEP_TIME > 0 else 0)") -eq 1 ]] && step "Slept ${SLEEP_TIME}s"
+# ---------------------------------------------------------
+# MAIN LOOP
+# ---------------------------------------------------------
+for (( i=1; i<=SIM; i++ )); do
+  run_tx "$i" &
+
+  # Batch control
+  if (( i % BG_LIMIT == 0 )); then
+    wait
+    if [[ $i -lt $SIM && $(python3 -c "print(1 if $SLEEP_TIME > 0 else 0)") -eq 1 ]]; then
+      step "Burst of $BG_LIMIT finished. Resting ${SLEEP_TIME}s..."
+      sleep "$SLEEP_TIME"
+    fi
   fi
 done
 
+wait
 echo ""
-ok "Done."
+ok "Daring session complete."
