@@ -3,17 +3,13 @@ import random
 import time
 import os
 import sys
-from filelock import FileLock
+
+# Commons
+from src.commons.config import DATA_FILE, NODES_FILE
+from src.commons.helpers import lock, calcular_taxa
 
 # Configurações
-NODES_FILE = "nodes_data.json"
-DATA_FILE = "blockchain_data.json"
-LOCK_FILE = "blockchain.lock"
-lock = FileLock(LOCK_FILE)
 INTERVALO_TRANSACOES = 30  # Reduzido para testes
-TAXA_BASE = 0.15
-TAXA_POR_BYTE = 0.01
-TAXA_MINIMA = 0.1
 
 class TransactionSimulator:
     def __init__(self):
@@ -83,8 +79,7 @@ class TransactionSimulator:
             }
             
             # Calcular taxa
-            tamanho = sys.getsizeof(json.dumps(tx_data))
-            fee = max(TAXA_BASE + (TAXA_POR_BYTE * tamanho), TAXA_MINIMA)
+            fee = calcular_taxa(tx_data)
             
             if (valor + fee) > saldo_disponivel:
                 return None

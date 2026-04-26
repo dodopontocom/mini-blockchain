@@ -27,13 +27,19 @@ die()  { echo -e "${RED}✗ ERROR: $1${RESET}" >&2; exit 1; }
 usage() {
   echo -e "${BOLD}Usage:${RESET}"
   echo -e "  $0 deploy --from <name> --code 'python_code'"
+  echo -e "  $0 deploy --from <name> --file <filename_in_src_contracts>"
   echo -e "  $0 call --from <name> --to <contract_addr> --params '{\"key\":\"val\"}'"
   echo -e "  $0 state"
   echo ""
   echo -e "${CYAN}Example (Deploy KV Store):${RESET}"
   echo -e "  $0 deploy --from Alice --code 'storage[msg[\"params\"][\"key\"]] = msg[\"params\"][\"val\"]; result=\"Saved\"'"
+  echo -e "  $0 deploy --from Alice --file voting"
   exit 1
 }
+
+# Path to contracts
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONTRACTS_DIR="$SCRIPT_DIR/../../src/contracts"
 
 # Resolve address helper
 resolve() {
@@ -49,13 +55,20 @@ case "$CMD" in
   deploy)
     FROM=""
     CODE=""
+    FILE=""
     while [[ $# -gt 0 ]]; do
       case $1 in
         --from) FROM="$2"; shift 2 ;;
         --code) CODE="$2"; shift 2 ;;
+        --file) FILE="$2"; shift 2 ;;
         *) usage ;;
       esac
     done
+    
+    if [[ -n "$FILE" ]]; then
+      CODE=$(cat "$CONTRACTS_DIR/$FILE.py" 2>/dev/null || die "Arquivo $CONTRACTS_DIR/$FILE.py não encontrado.")
+    fi
+    
     [[ -z "$FROM" || -z "$CODE" ]] && usage
     
     SENDER_ADDR=$(resolve "$FROM")

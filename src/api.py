@@ -1,7 +1,6 @@
 from flask import Flask, request, jsonify, render_template, session, Blueprint
 import requests
 from flask_restx import Api, Resource, fields
-from filelock import FileLock
 import json
 import hashlib
 import os
@@ -9,14 +8,9 @@ import random
 import string
 import time
 
-# Configurações
-DATA_FILE = "blockchain_data.json"
-LOCK_FILE = "blockchain.lock"
-lock = FileLock(LOCK_FILE)
-TAXA_BASE = 0.15
-TAXA_POR_BYTE = 0.01
-TAXA_MINIMA = 0.1
-NODES_FILE = "nodes_data.json"
+# Commons
+from src.commons.config import DATA_FILE, NODES_FILE, TAXA_BASE, TAXA_POR_BYTE, TAXA_MINIMA
+from src.commons.helpers import lock, calcular_taxa
 
 # Inicialização do Flask
 app = Flask(__name__, 
@@ -80,11 +74,6 @@ def carregar_nodes():
     except Exception as e:
         print(f"Erro crítico ao carregar nós: {str(e)}")
         raise
-        
-def calcular_taxa(transaction_data):
-    tamanho = len(json.dumps(transaction_data))
-    taxa = TAXA_BASE + (TAXA_POR_BYTE * tamanho)
-    return max(taxa, TAXA_MINIMA)
 
 def get_blockchain_data():
     with lock:
@@ -152,6 +141,7 @@ class AddTransaction(Resource):
             'amount': data['amount'],
             'type': data.get('type', 'transfer'),
             'data': data.get('data'),
+            'data_params': data.get('data_params', {}),
             'signature': data['signature'],
             'timestamp': timestamp
         }

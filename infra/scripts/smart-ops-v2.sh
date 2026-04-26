@@ -20,6 +20,14 @@ RESET='\033[0m'
 step() { echo -e "${CYAN}▶${RESET} $1" >&2; }
 ok()   { echo -e "${GREEN}✓${RESET} $1" >&2; }
 
+# Path to contracts
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONTRACTS_DIR="$SCRIPT_DIR/../../src/contracts"
+
+read_contract() {
+  cat "$CONTRACTS_DIR/$1.py"
+}
+
 resolve() {
   jq -r ".\"$1\".address" "$NODES_FILE"
 }
@@ -54,25 +62,11 @@ case "$CMD" in
         --options) OPTS="$2"; shift 2 ;;
       esac
     done
-    CODE="
-storage['results'] = storage.get('results', {opt: 0 for opt in $OPTS})
-storage['voters'] = storage.get('voters', [])
-opt = msg['params'].get('opt')
-if opt:
-    if msg['sender'] in storage['voters']:
-        result = 'ERRO: Ja votou'
-    elif opt not in storage['results']:
-        result = 'ERRO: Opcao invalida'
-    else:
-        storage['results'][opt] += 1
-        storage['voters'].append(msg['sender'])
-        result = f'Voto computado para {opt}'
-else:
-    result = 'Votacao Ativa'
-"
+    CODE=$(read_contract "voting")
     step "Deploying Voting..."
     SENDER=$(resolve "$FROM")
-    PAYLOAD=$(jq -n --arg s "$SENDER" --arg c "$CODE" --arg sig "$SIGNATURE" '{sender: $s, receiver: "contract_deploy", amount: 0, type: "deploy", data: $c, signature: $sig}')
+    PAYLOAD=$(jq -n --arg s "$SENDER" --arg c "$CODE" --argjson o "$OPTS" --arg sig "$SIGNATURE" \
+      '{sender: $s, receiver: "contract_deploy", amount: 0, type: "deploy", data: $c, data_params: {options: $o}, signature: $sig}')
     curl -s -X POST "$API_URL/api/add-transaction" -H "Content-Type: application/json" -d "$PAYLOAD" | jq .
     ;;
 
@@ -97,25 +91,11 @@ else:
         --from) FROM="$2"; shift 2 ;;
       esac
     done
-    CODE="
-storage['balances'] = storage.get('balances', {})
-sender = msg['sender']
-if msg['amount'] > 0:
-    storage['balances'][sender] = storage['balances'].get(sender, 0) + msg['amount']
-    result = f'Operacao de Deposito: {msg[\"amount\"]}'
-elif msg['params'].get('action') == 'withdraw':
-    amt = msg['params'].get('amount', 0)
-    if storage['balances'].get(sender, 0) >= amt:
-        storage['balances'][sender] -= amt
-        result = f'Saque de {amt} realizado.'
-    else:
-        result = 'ERRO: Saldo insuficiente no Vault'
-else:
-    result = 'Vault Ready'
-"
+    CODE=$(read_contract "vault")
     step "Deploying Vault..."
     SENDER=$(resolve "$FROM")
-    PAYLOAD=$(jq -n --arg s "$SENDER" --arg c "$CODE" --arg sig "$SIGNATURE" '{sender: $s, receiver: "contract_deploy", amount: 0, type: "deploy", data: $c, signature: $sig}')
+    PAYLOAD=$(jq -n --arg s "$SENDER" --arg c "$CODE" --arg sig "$SIGNATURE" \
+      '{sender: $s, receiver: "contract_deploy", amount: 0, type: "deploy", data: $c, signature: $sig}')
     curl -s -X POST "$API_URL/api/add-transaction" -H "Content-Type: application/json" -d "$PAYLOAD" | jq .
     ;;
 
@@ -158,28 +138,11 @@ else:
       esac
     done
     HEIR_ADDR=$(resolve "$HEIR")
-    CODE="
-storage['owner'] = storage.get('owner', msg['sender'])
-storage['heir'] = storage.get('heir', '$HEIR_ADDR')
-storage['secret'] = storage.get('secret', '$SECRET')
-storage['timeout'] = storage.get('timeout', $TIMEOUT)
-storage['last_seen'] = storage.get('last_seen', msg['timestamp'])
-storage['status'] = storage.get('status', 'ATIVO')
-
-action = msg['params'].get('action')
-if action == 'ping' and msg['sender'] == storage['owner']:
-    storage['last_seen'] = msg['timestamp']
-    result = 'Sinal de vida recebido'
-elif action == 'recover' and msg['sender'] == storage['heir']:
-    if msg['timestamp'] - storage['last_seen'] > storage['timeout']:
-        storage['status'] = 'REVELADO'
-        result = f'Segredo: {storage[\"secret\"]}'
-    else:
-        result = 'Ainda nao expirou'
-"
+    CODE=$(read_contract "heritage")
     step "Deploying Heritage..."
     SENDER=$(resolve "$FROM")
-    PAYLOAD=$(jq -n --arg s "$SENDER" --arg c "$CODE" --arg sig "$SIGNATURE" '{sender: $s, receiver: "contract_deploy", amount: 0, type: "deploy", data: $c, signature: $sig}')
+    PAYLOAD=$(jq -n --arg s "$SENDER" --arg c "$CODE" --arg h "$HEIR_ADDR" --arg sec "$SECRET" --argjson t "$TIMEOUT" --arg sig "$SIGNATURE" \
+      '{sender: $s, receiver: "contract_deploy", amount: 0, type: "deploy", data: $c, data_params: {heir: $h, secret: $sec, timeout: $t}, signature: $sig}')
     curl -s -X POST "$API_URL/api/add-transaction" -H "Content-Type: application/json" -d "$PAYLOAD" | jq .
     ;;
 
