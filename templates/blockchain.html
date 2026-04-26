@@ -60,7 +60,8 @@
                                     
                                     <div class="collapse mt-2" id="tx-detail-${block.index}-${txIndex}">
                                         <div class="card card-body bg-light border-0 small">
-                                            <div class="mb-1"><strong>Remetente:</strong> <code class="text-break">${tx.sender}</code></div>
+                                            <div class="mb-1 text-primary small font-monospace">TXID: ${tx.tx_hash || 'N/A'}</div>
+                                            <div class="mb-1"><strong>De:</strong> <code class="text-break">${tx.sender}</code></div>
                                             <div class="mb-1"><strong>Destinatário:</strong> <code class="text-break">${tx.receiver}</code></div>
                                             <div class="mb-1"><strong>Valor:</strong> ${tx.amount.toFixed(8)} BTC</div>
                                             <div class="mb-1"><strong>Taxa:</strong> ${tx.fee ? tx.fee.toFixed(8) : '0.00000000'} BTC</div>

@@ -7,6 +7,7 @@ import hashlib
 import os
 import random
 import string
+import time
 
 # Configurações
 DATA_FILE = "blockchain_data.json"
@@ -135,13 +136,25 @@ class AddTransaction(Resource):
         if not any(node['address'] == data['receiver'] for node in nodes.values()):
             return {"message": f"Destinatário inválido: {data['receiver']}"}, 400
 
-        # Cria transação completa
-        new_transaction = {
+        # Cria transação completa com hash e timestamp
+        timestamp = time.time()
+        tx_base = {
             'sender': data['sender'],
             'receiver': data['receiver'],
             'amount': data['amount'],
-            'fee': calcular_taxa(data),
-            'signature': data['signature']
+            'signature': data['signature'],
+            'timestamp': timestamp
+        }
+        fee = calcular_taxa(tx_base)
+        
+        # Gera TXID (Transaction Hash)
+        tx_string = json.dumps({**tx_base, 'fee': fee}, sort_keys=True).encode()
+        tx_hash = hashlib.sha256(tx_string).hexdigest()
+
+        new_transaction = {
+            'tx_hash': tx_hash,
+            **tx_base,
+            'fee': fee
         }
 
         # Verificação de saldo
@@ -175,7 +188,7 @@ class AddTransaction(Resource):
             with open(DATA_FILE, 'w') as f:
                 json.dump(blockchain_data, f, indent=4)
 
-        return {"message": "Transação adicionada com sucesso!"}, 201
+        return {"message": "Transação adicionada com sucesso!", "transaction": new_transaction}, 201
 
 @api.route('/balances')
 class Balances(Resource):
@@ -224,7 +237,15 @@ def carteira():
     except FileNotFoundError:
         return render_template('erro.html', mensagem="Arquivo de nós não encontrado!")
 
-    # Seleciona um nó aleatório na primeira visita
+    # Sincroniza dados do usuário se ele já estiver na sessão
+    if 'user' in session:
+        name = session['user']['name']
+        if name in nodes:
+            session['user']['address'] = nodes[name]['address']
+        else:
+            session.pop('user') # Usuário não existe mais
+
+    # Seleciona um nó aleatório se não houver usuário
     if 'user' not in session:
         if not nodes:
             return render_template('erro.html', mensagem="Nenhum usuário cadastrado!")

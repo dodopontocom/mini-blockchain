@@ -95,7 +95,9 @@ if ! curl -s --max-time 2 "$API_URL/api/blocks" >/dev/null; then
   die "API not responding at $API_URL"
 fi
 
-step "Starting session: ${RANDOM_MODE:+RANDOM MODE }($SIM transactions)"
+MODO_STR="MANUAL"
+[[ "$RANDOM_MODE" == "true" ]] && MODO_STR="RANDOM"
+step "Starting session: $MODO_STR MODE ($SIM transactions)"
 
 for (( i=1; i<=SIM; i++ )); do
   echo "────────────────────────────────────────────"
@@ -165,7 +167,9 @@ for (( i=1; i<=SIM; i++ )); do
     -d "$PAYLOAD")
 
   if echo "$RESPONSE" | grep -q "sucesso"; then
+    TXID=$(echo "$RESPONSE" | jq -r '.transaction.tx_hash // "N/A"')
     ok "Success: $CUR_FROM_NAME -> $CUR_DEST_NAME"
+    [[ "$TXID" != "N/A" ]] && step "TXID: $TXID"
   else
     warn "Failed: $RESPONSE"
   fi

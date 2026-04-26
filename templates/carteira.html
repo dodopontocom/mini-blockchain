@@ -315,6 +315,7 @@
                     </button>
                     <div class="collapse mt-1" id="pending-details-${idx}">
                         <div class="card card-body p-2 bg-light border-0 x-small">
+                            <div class="text-primary font-monospace mb-1" style="font-size: 0.7rem;">TXID: ${tx.tx_hash || 'N/A'}</div>
                             <div><strong>De:</strong> <code class="text-break">${tx.sender}</code></div>
                             <div><strong>Para:</strong> <code class="text-break">${tx.receiver}</code></div>
                             <div><strong>Taxa:</strong> ${tx.fee.toFixed(4)} BTC</div>

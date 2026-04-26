@@ -101,9 +101,21 @@ class Blockchain:
         taxa = TAXA_BASE + (TAXA_POR_BYTE * tamanho)
         return max(taxa, TAXA_MINIMA)
 
+    def gerar_tx_hash(self, transaction_data):
+        # Gera hash SHA256 dos dados da transação para servir como TXID
+        tx_string = json.dumps({
+            'sender': transaction_data['sender'],
+            'receiver': transaction_data['receiver'],
+            'amount': transaction_data['amount'],
+            'fee': transaction_data.get('fee', 0),
+            'signature': transaction_data['signature'],
+            'timestamp': transaction_data.get('timestamp', time.time()) # Garante unicidade
+        }, sort_keys=True).encode()
+        return hashlib.sha256(tx_string).hexdigest()
+
     def add_transaction(self, sender, receiver, amount, signature):
         with lock:
-            # Carregar transações existentes
+            # ... (código existente carregar transações) ...
             if os.path.exists(DATA_FILE):
                 with open(DATA_FILE, 'r') as f:
                     data = json.load(f)
@@ -111,23 +123,25 @@ class Blockchain:
             else:
                 pending = []
             
-            # --- CÁLCULO DA TAXA FALTANDO ---
-            tx_data = {'sender': sender, 'receiver': receiver, 'amount': amount}
-            fee = self.calcular_taxa(tx_data)  # Adicione esta linha
+            tx_data = {'sender': sender, 'receiver': receiver, 'amount': amount, 'signature': signature, 'timestamp': time.time()}
+            fee = self.calcular_taxa(tx_data)
             
-            # Adicionar nova transação (agora com fee calculada)
-            pending.append({
+            # Adicionar nova transação com TXID
+            new_tx = {
+                'tx_hash': self.gerar_tx_hash({**tx_data, 'fee': fee}),
                 'sender': sender,
                 'receiver': receiver,
                 'amount': amount,
-                'fee': fee,  # Agora fee existe!
-                'signature': signature
-            })
+                'fee': fee,
+                'signature': signature,
+                'timestamp': tx_data['timestamp']
+            }
             
-            # Salvar atualizado
+            pending.append(new_tx)
             data['pending_transactions'] = pending
             with open(DATA_FILE, 'w') as f:
                 json.dump(data, f, indent=4)
+        return True
 
     def mine_block(self, miner_address):
         # Carregar transações pendentes diretamente do arquivo
