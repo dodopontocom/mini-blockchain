@@ -13,30 +13,49 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+      - name: Log in to the Container registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build local image (for testing runner)
-        run: docker build -t mini-blockchain:test .
-
-      - name: Run Blockchain and Simulator
+      - name: Pull and Run Blockchain Simulator
         run: |
+          IMAGE_NAME="ghcr.io/${{ github.repository }}:latest"
+          echo "🚀 Puxando imagem $IMAGE_NAME..."
+          docker pull $IMAGE_NAME
+          
           echo "🚀 Iniciando Blockchain por ${{ github.event.inputs.duration }} segundos..."
-          # Roda o container em background
-          docker run -d --name bc-node -p 5000:5000 mini-blockchain:test
+          docker run -d --name bc-node -p 5000:5000 $IMAGE_NAME
           
           # Espera a duração informada
           sleep ${{ github.event.inputs.duration }}
           
           echo "📊 Resultados da Simulação:"
           echo "--------------------------"
-          echo "Blocos Minerados:"
-          docker exec bc-node curl -s http://localhost:5000/api/blocks | jq '. | length'
           
-          echo "Estado Final dos Contratos:"
-          docker exec bc-node curl -s http://localhost:5000/api/state | jq .
+          # Captura dados para o Summary
+          BLOCK_COUNT=$(docker exec bc-node curl -s http://localhost:5000/api/blocks | jq '. | length')
+          TOTAL_TX=$(docker exec bc-node curl -s http://localhost:5000/api/blocks | jq '[.[].transactions | length] | add')
+          TPS=$(echo "scale=2; $TOTAL_TX / ${{ github.event.inputs.duration }}" | bc)
+          CONTRACTS=$(docker exec bc-node curl -s http://localhost:5000/api/state | jq '.')
           
-          echo "Logs do Sistema:"
-          docker logs bc-node
+          echo "### 🔥 Relatório de Estresse da Mini-Blockchain" >> $GITHUB_STEP_SUMMARY
+          echo "A carga máxima foi aplicada ao runner do GitHub." >> $GITHUB_STEP_SUMMARY
+          echo "- **Duração:** ${{ github.event.inputs.duration }} segundos" >> $GITHUB_STEP_SUMMARY
+          echo "- **Total de Blocos Minerados:** $BLOCK_COUNT" >> $GITHUB_STEP_SUMMARY
+          echo "- **Total de Transações Processadas:** $TOTAL_TX" >> $GITHUB_STEP_SUMMARY
+          echo "- **Performance Média (TPS):** $TPS tx/s" >> $GITHUB_STEP_SUMMARY
+          
+          echo "#### 🚀 Estado dos Smart Contracts" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
+          echo "$CONTRACTS" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          
+          echo "#### 📜 Logs do Sistema (Últimas 50 linhas)" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`text" >> $GITHUB_STEP_SUMMARY
+          docker logs bc-node | tail -n 50 >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           
           docker stop bc-node

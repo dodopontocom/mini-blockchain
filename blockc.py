@@ -18,7 +18,7 @@ DIFFICULTY = 2
 TAXA_BASE = 0.15
 TAXA_POR_BYTE = 0.01
 TAXA_MINIMA = 0.1
-INTERVALO_MINERACAO = 15
+INTERVALO_MINERACAO = 5 # Reduzido de 15 para 5 para o runner do GitHub
 
 class Block:
     def __init__(self, index, transactions, previous_hash, nonce, timestamp, state_root=None, hash="", **kwargs):

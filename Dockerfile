@@ -25,6 +25,5 @@ RUN chmod +x *.sh
 # Expõe a porta da API
 EXPOSE 5000
 
-# O run.sh já orquestra o blockc, api e simulador
-# Usamos o comando direto para evitar problemas com venv dentro do Docker
-CMD ["./run.sh"]
+# Entrypoint orquestrador
+CMD ["./entrypoint.sh"]
