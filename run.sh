@@ -33,7 +33,9 @@ PYTHON=$(command -v python3 || command -v python || true)
 ok "$($PYTHON --version)"
 
 # ── Cria venv ──────────────────────────────────
-if [ ! -d "$VENV_DIR" ]; then
+if [ -f /.dockerenv ]; then
+  ok "Rodando em Docker: pulando criação de venv"
+elif [ ! -d "$VENV_DIR" ]; then
   step "Criando venv em ./$VENV_DIR..."
   $PYTHON -m venv "$VENV_DIR"
   ok "venv criado"
@@ -47,6 +49,8 @@ if [ ! -f "$GITIGNORE" ]; then
   warn ".gitignore não encontrado — criando..."
   echo "venv/" > "$GITIGNORE"
   ok "venv/ adicionado ao .gitignore"
+elif [ -f /.dockerenv ]; then
+  ok "Docker: pulando verificação de gitignore"
 elif grep -q "^venv" "$GITIGNORE" 2>/dev/null; then
   ok "venv já está no .gitignore"
 else
@@ -56,10 +60,12 @@ else
 fi
 
 # ── Ativa venv ─────────────────────────────────
-step "Ativando venv..."
-# shellcheck disable=SC1091
-source "$VENV_DIR/bin/activate"
-ok "venv ativo: $(which python)"
+if [ ! -f /.dockerenv ]; then
+  step "Ativando venv..."
+  # shellcheck disable=SC1091
+  source "$VENV_DIR/bin/activate"
+  ok "venv ativo: $(which python)"
+fi
 
 # ── Instala dependências ───────────────────────
 step "Instalando dependências..."
@@ -89,7 +95,7 @@ cleanup() {
   echo ""
   echo -e "${YELLOW}Encerrando...${RESET}"
   kill "$BLOCKC_PID" "$API_PID" "$SIM_PID" 2>/dev/null || true
-  deactivate 2>/dev/null || true
+  command -v deactivate >/dev/null 2>&1 && deactivate || true
 }
 trap cleanup EXIT INT TERM
 
