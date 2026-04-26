@@ -2,6 +2,49 @@
 
 Simulador de blockchain educacional com suporte a smart contracts, API REST e testes de performance.
 
+## 📁 Estrutura do Projeto
+
+- `src/`: Core da aplicação (API, Lógica da Blockchain, Simuladores).
+- `infra/`: Infraestrutura, Dockerfile e scripts operacionais.
+- `.github/workflows/`: Automação de build e testes de performance.
+
+## 🚀 Como Executar
+
+### Localmente (Bash)
+```bash
+./infra/scripts/run.sh
+```
+
+### Via Docker
+```bash
+docker build -t mini-blockchain -f infra/Dockerfile .
+docker run -p 5000:5000 mini-blockchain
+```
+
+## 📊 Funcionalidades
+- **Blockchain**: Mineração automática, transações assinadas e integridade via hashes.
+- **Smart Contracts**: Deploy e interação com contratos de votação, banco (vault) e herança.
+- **API**: Endpoints para consulta de blocos, saldos e envio de transações.
+- **Stress Test**: Motor de simulação de tráfego intenso e aleatório.
+
+## 🛠️ Tecnologias
+- Python 3.11+
+- Flask & Flask-RESTX
+- ECDSA (Criptografia)
+- Docker & GitHub Actions
+
+## 🧠 Entendendo os Smart Contracts
+
+Pense em um **Smart Contract** como uma "máquina de vendas" digital: você insere os dados (ou valores), a máquina processa as regras sozinha e entrega o resultado, sem precisar de um humano no meio para validar.
+
+Neste projeto, simulamos três tipos comuns:
+1.  **Votação**: Uma urna eletrônica onde cada voto é registrado e ninguém pode apagar.
+2.  **Cofre (Vault)**: Um banco pessoal onde você guarda seus valores e só você (o dono) pode sacar.
+3.  **Herança (Dead Man Switch)**: Um contrato que envia seus bens para outra pessoa se você ficar muito tempo sem dar um "ping" (avisar que está vivo).
+
+### Fluxo de Operação
+O diagrama abaixo mostra como os scripts interagem com esses contratos através da nossa API:
+
 ```mermaid
 graph TD
     %% Nodes
@@ -51,34 +94,3 @@ graph TD
     style Block fill:#0c447c,stroke:#85b7eb,color:#fff
     style Nodes fill:#444,stroke:#999,color:#fff
 ```
-
-## 📁 Estrutura do Projeto
-
-- `src/`: Core da aplicação (API, Lógica da Blockchain, Simuladores).
-- `infra/`: Infraestrutura, Dockerfile e scripts operacionais.
-- `.github/workflows/`: Automação de build e testes de performance.
-
-## 🚀 Como Executar
-
-### Localmente (Bash)
-```bash
-./infra/scripts/run.sh
-```
-
-### Via Docker
-```bash
-docker build -t mini-blockchain -f infra/Dockerfile .
-docker run -p 5000:5000 mini-blockchain
-```
-
-## 📊 Funcionalidades
-- **Blockchain**: Mineração automática, transações assinadas e integridade via hashes.
-- **Smart Contracts**: Deploy e interação com contratos de votação, banco (vault) e herança.
-- **API**: Endpoints para consulta de blocos, saldos e envio de transações.
-- **Stress Test**: Motor de simulação de tráfego intenso e aleatório.
-
-## 🛠️ Tecnologias
-- Python 3.11+
-- Flask & Flask-RESTX
-- ECDSA (Criptografia)
-- Docker & GitHub Actions
