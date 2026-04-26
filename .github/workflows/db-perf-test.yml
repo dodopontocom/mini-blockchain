@@ -26,7 +26,24 @@ jobs:
           docker pull $IMAGE_NAME
           
           docker run -d --name db-node -p 5000:5000 $IMAGE_NAME
-          sleep ${{ github.event.inputs.duration }}
+          
+          echo "🚀 Monitorando atividade por ${{ github.event.inputs.duration }} segundos..."
+          DURATION=${{ github.event.inputs.duration }}
+          INTERVAL=10
+          ELAPSED=0
+          
+          while [ $ELAPSED -lt $DURATION ]; do
+            sleep $INTERVAL
+            ELAPSED=$((ELAPSED + INTERVAL))
+            
+            # Coleta métricas rápidas para o log
+            BLOCKS=$(docker exec db-node curl -s http://localhost:5000/api/blocks | jq '. | length' 2>/dev/null || echo "0")
+            TXS=$(docker exec db-node curl -s http://localhost:5000/api/blocks | jq '[.[].transactions | length] | add' 2>/dev/null || echo "0")
+            
+            echo "⏱️  ${ELAPSED}s / ${DURATION}s | 📦 Blocos: $BLOCKS | 📝 Transações: $TXS"
+          done
+          
+          echo "✅ Tempo de simulação atingido!"
           
           # Captura dados
           TOTAL_BLOCKS=$(docker exec db-node curl -s http://localhost:5000/api/blocks | jq '. | length')
