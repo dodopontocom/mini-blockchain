@@ -1,6 +1,14 @@
 name: Database Performance Simulation
 
 on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'infra/Dockerfile'
+      - 'requirements.txt'
+      - 'src/**.py'
+      - 'infra/scripts/**.sh'
+      - '.github/workflows/image-build.yml'
   workflow_dispatch:
     inputs:
       duration:
@@ -13,7 +21,31 @@ on:
         default: '5'
 
 jobs:
+  check-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      docker: ${{ steps.filter.outputs.docker }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            docker:
+              - 'infra/Dockerfile'
+              - 'requirements.txt'
+              - 'src/**.py'
+              - 'infra/scripts/**.sh'
+              - '.github/workflows/image-build.yml'
+
+  build-image:
+    needs: check-changes
+    if: needs.check-changes.outputs.docker == 'true'
+    uses: ./.github/workflows/image-build.yml
+
   run-perf-test:
+    needs: [check-changes, build-image]
+    if: always() && (needs.check-changes.result == 'success') && (needs.build-image.result == 'success' || needs.build-image.result == 'skipped')
     runs-on: ubuntu-latest
     
     steps:
@@ -30,10 +62,11 @@ jobs:
           docker pull $IMAGE_NAME
           
           # Passa o nível de estresse via variável de ambiente
-          docker run -d --name db-node -p 5000:5000 -e STRESS_LEVEL=${{ github.event.inputs.stress_level }} $IMAGE_NAME
+          STRESS=${{ github.event.inputs.stress_level || '5' }}
+          docker run -d --name db-node -p 5000:5000 -e STRESS_LEVEL=$STRESS $IMAGE_NAME
           
-          echo "🚀 Monitorando atividade por ${{ github.event.inputs.duration }} segundos..."
-          DURATION=${{ github.event.inputs.duration }}
+          DURATION=${{ github.event.inputs.duration || '120' }}
+          echo "🚀 Monitorando atividade por $DURATION segundos..."
           INTERVAL=10
           ELAPSED=0
           
@@ -53,7 +86,7 @@ jobs:
           # Captura dados
           TOTAL_BLOCKS=$(docker exec db-node curl -s http://localhost:5000/api/blocks | jq '. | length')
           TOTAL_DATA=$(docker exec db-node curl -s http://localhost:5000/api/blocks | jq '[.[].transactions | length] | add')
-          THROUGHPUT=$(echo "scale=2; $TOTAL_DATA / ${{ github.event.inputs.duration }}" | bc)
+          THROUGHPUT=$(echo "scale=2; $TOTAL_DATA / $DURATION" | bc)
           
           echo "### 📊 Performance Report" >> $GITHUB_STEP_SUMMARY
           echo "- **Data Records Processed:** $TOTAL_DATA" >> $GITHUB_STEP_SUMMARY

@@ -20,10 +20,10 @@ RUN pip install --no-cache-dir flask flask-restx requests ecdsa filelock
 COPY . .
 
 # Dá permissão de execução para todos os scripts
-RUN chmod +x *.sh
+RUN chmod +x infra/scripts/*.sh
 
 # Expõe a porta da API
 EXPOSE 5000
 
 # Entrypoint orquestrador
-CMD ["./entrypoint.sh"]
+CMD ["./infra/scripts/entrypoint.sh"]

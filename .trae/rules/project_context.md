@@ -8,27 +8,31 @@ This project is a blockchain simulation application that allows users to interac
 The application is built using Python, leveraging a simple MVC (Model-View-Controller) architecture. Key design decisions include the separation of concerns between the API logic (`api.py`), blockchain management (`blockc.py`), and user interface templates. The project utilizes Flask for web serving and ECDSA for cryptographic functions.
 
 ## Structure
-- `api.py`: Contains the main API logic for handling requests and responses.
-- `blockc.py`: Manages blockchain operations, including transaction handling and data retrieval.
-- `simulations.py`: Implements simulation logic for blockchain interactions.
-- `static/style.css`: Contains styles for the web interface.
-- `templates/`: Directory for HTML templates.
-  - `base.html`: Base template for the application.
-  - `carteira.html`: Template for displaying wallet information.
-  - `erro.html`: Template for error handling.
+- `src/`: Core application logic.
+  - `api.py`: Main API logic for handling requests and responses.
+  - `blockc.py`: Blockchain management operations.
+  - `simulations.py`: Simulation logic for blockchain interactions.
+  - `static/`: Frontend assets (CSS, etc.).
+  - `templates/`: HTML templates for the UI.
+- `infra/`: Infrastructure and deployment configuration.
+  - `Dockerfile`: Container definition.
+  - `scripts/`: Operational scripts (`run.sh`, `entrypoint.sh`, etc.).
 - `.gitignore`: Specifies files and directories to be ignored by Git.
-- `requirements.txt`: Lists external dependencies required for the project.
-- `.trae/rules/caveman.md`: Documentation or rules related to project conventions.
+- `requirements.txt`: Lists external dependencies.
 
 ## Entry Points
-The main entry point is `api.py`, which starts the Flask application and handles incoming web requests. The application serves the HTML templates and processes blockchain-related operations through the defined API endpoints.
+The main entry point is `src/api.py`, started via `infra/scripts/run.sh`.
 
 ## Infrastructure & DevOps
-The project does not currently specify any containerization or cloud infrastructure. CI/CD practices are not evident from the provided context. Future enhancements may include integrating Docker for containerization and setting up CI/CD pipelines for automated testing and deployment.
+The project uses Docker for containerization and GitHub Actions for CI/CD, including performance tests and automated image builds.
 
 ## Dependencies
 - `ecdsa`: Essential for implementing cryptographic functions related to blockchain transactions.
 - `filelock`: Used for managing file access in a concurrent environment, ensuring data integrity during blockchain operations.
 
 ## For AI Assistants
-AI should adhere to the MVC pattern when making changes, ensuring that business logic remains in `blockc.py`, API handling in `api.py`, and UI elements in the `templates/` directory. Maintain consistency in naming conventions and code style, particularly with the use of double quotes as indicated in the commit history.
+AI should adhere to the MVC pattern:
+- Business logic in `src/blockc.py`.
+- API handling in `src/api.py`.
+- UI elements in `src/templates/`.
+- Scripts in `infra/scripts/`.

@@ -19,7 +19,9 @@ TAXA_MINIMA = 0.1
 NODES_FILE = "nodes_data.json"
 
 # Inicialização do Flask
-app = Flask(__name__, template_folder='templates')
+app = Flask(__name__, 
+            template_folder='templates',
+            static_folder='static')
 app.secret_key = 'teste123'  # Para sessões
 
 # ===========================================

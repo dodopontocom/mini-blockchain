@@ -80,9 +80,9 @@ ok "Todos os pacotes instalados"
 
 # ── Valida arquivos principais ─────────────────
 step "Validando arquivos do projeto..."
-[ ! -f "blockc.py" ] && die "blockc.py não encontrado"
-[ ! -f "api.py" ]    && die "api.py não encontrado"
-ok "blockc.py e api.py encontrados"
+[ ! -f "src/blockc.py" ] && die "src/blockc.py não encontrado"
+[ ! -f "src/api.py" ]    && die "src/api.py não encontrado"
+ok "src/blockc.py e src/api.py encontrados"
 
 # ── Sobe os processos ──────────────────────────
 echo ""
@@ -100,22 +100,22 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 # sobe blockc em background
-step "Iniciando blockc.py (mining)..."
-python blockc.py &
+step "Iniciando src/blockc.py (mining)..."
+python src/blockc.py &
 BLOCKC_PID=$!
 sleep 2
 kill -0 "$BLOCKC_PID" 2>/dev/null && ok "blockc.py rodando (PID $BLOCKC_PID)" || die "blockc.py falhou ao iniciar"
 
 # sobe api em background
-step "Iniciando api.py (porta $PORT)..."
-python api.py &
+step "Iniciando src/api.py (porta $PORT)..."
+python src/api.py &
 API_PID=$!
 sleep 2
 kill -0 "$API_PID" 2>/dev/null && ok "api.py rodando (PID $API_PID)" || die "api.py falhou ao iniciar"
 
 # sobe simulador em background
 step "Iniciando simulador de transações..."
-python simulations.py &
+python src/simulations.py &
 SIM_PID=$!
 ok "simulations.py rodando (PID $SIM_PID)"
 
