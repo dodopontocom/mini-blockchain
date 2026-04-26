@@ -294,6 +294,11 @@ else:
         'David': Node('David'),
         'Eve': Node('Eve')
     }
+    # Gera 50 usuários extras
+    for i in range(1, 51):
+        name = f"User{i}"
+        nodes[name] = Node(name)
+        
     with open(NODES_FILE, 'w') as f:
         json.dump({name: {'address': node.address} for name, node in nodes.items()}, f, indent=4)
 
