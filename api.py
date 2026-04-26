@@ -130,6 +130,11 @@ class AddTransaction(Resource):
         if not all(field in data for field in required_fields):
             return {"message": "Campos obrigatórios faltando"}, 400
 
+        # Validação do destinatário no nodes_data.json
+        nodes = carregar_nodes()
+        if not any(node['address'] == data['receiver'] for node in nodes.values()):
+            return {"message": f"Destinatário inválido: {data['receiver']}"}, 400
+
         # Cria transação completa
         new_transaction = {
             'sender': data['sender'],
@@ -139,9 +144,32 @@ class AddTransaction(Resource):
             'signature': data['signature']
         }
 
-        # Persistência segura
+        # Verificação de saldo
         with lock:
             blockchain_data = get_blockchain_data()
+            
+            # Reutiliza lógica de cálculo de saldo (simplificada para o sender)
+            balances = {}
+            INITIAL_BALANCE = 100.0
+            for block in blockchain_data['chain']:
+                for tx in block['transactions']:
+                    if tx['sender'] not in balances: balances[tx['sender']] = INITIAL_BALANCE
+                    if tx['receiver'] not in balances: balances[tx['receiver']] = INITIAL_BALANCE
+                    if tx['sender'] != 'coinbase':
+                        balances[tx['sender']] -= tx['amount'] + tx.get('fee', 0)
+                    balances[tx['receiver']] += tx['amount']
+            
+            for tx in blockchain_data.get('pending_transactions', []):
+                if tx['sender'] not in balances: balances[tx['sender']] = INITIAL_BALANCE
+                if tx['sender'] != 'coinbase':
+                    balances[tx['sender']] -= tx['amount'] + tx.get('fee', 0)
+
+            current_balance = balances.get(new_transaction['sender'], INITIAL_BALANCE)
+            total_cost = new_transaction['amount'] + new_transaction['fee']
+
+            if total_cost > current_balance:
+                return {"message": f"Saldo insuficiente! Disponível: {current_balance:.2f}, Necessário: {total_cost:.2f}"}, 400
+
             blockchain_data['pending_transactions'].append(new_transaction)
             
             with open(DATA_FILE, 'w') as f:
@@ -164,12 +192,20 @@ class Balances(Resource):
                     if tx[field] not in balances:
                         balances[tx[field]] = INITIAL_BALANCE
         
-        # Cálculo de saldos
+        # Cálculo de saldos (blocos confirmados)
         for block in data['chain']:
             for tx in block['transactions']:
                 if tx['sender'] != 'coinbase':
                     balances[tx['sender']] -= tx['amount'] + tx.get('fee', 0)
                 balances[tx['receiver']] += tx['amount']
+        
+        # Subtrair transações pendentes do saldo do remetente
+        for tx in data.get('pending_transactions', []):
+            sender = tx['sender']
+            if sender != 'coinbase':
+                if sender not in balances:
+                    balances[sender] = INITIAL_BALANCE
+                balances[sender] -= tx['amount'] + tx.get('fee', 0)
         
         return balances
 
