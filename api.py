@@ -279,6 +279,11 @@ def enviar_transacao():
         sender_address = session['user']['address']
         amount = float(request.form['amount'])
         
+        # Verificação de saldo antes de enviar
+        balances_response = requests.get('http://localhost:5000/api/balances')
+        balances = balances_response.json()
+        current_balance = balances.get(sender_address, 100.0)
+
         # Cálculo correto da taxa
         tx_data = {
             'sender': sender_address,
@@ -286,6 +291,9 @@ def enviar_transacao():
             'amount': amount
         }
         fee = calcular_taxa(tx_data)
+
+        if (amount + fee) > current_balance:
+            return {'status': 'error', 'message': f'Saldo insuficiente! Você tem {current_balance:.2f} BTC, mas o custo total (valor + taxa) é {(amount + fee):.2f} BTC'}, 400
 
         # Montagem da transação
         transacao = {

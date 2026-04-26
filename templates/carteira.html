@@ -91,15 +91,19 @@
                 </div>
                 
                 <div class="mb-3">
-                    <label class="form-label">💵 Quantidade (BTC)</label>
-                    <div class="input-group">
-                        <input type="number" step="0.01" class="form-control"
-                            placeholder="0.00"
-                            id="amount-field" required
-                            min="0.01" max="1000">
-                        <span class="input-group-text">BTC</span>
-                    </div>
-                </div>
+                            <label class="form-label">💵 Quantidade (BTC)</label>
+                            <div class="input-group">
+                                <input type="number" step="0.01" class="form-control"
+                                    placeholder="0.00"
+                                    id="amount-field" required
+                                    min="0.01" max="1000"
+                                    oninput="preverTaxa()">
+                                <span class="input-group-text">BTC</span>
+                            </div>
+                            <div id="fee-preview" class="form-text text-muted small mt-1">
+                                Taxa estimada: 0.0000 BTC | Custo total: 0.00 BTC
+                            </div>
+                        </div>
 
                 <div class="d-grid gap-2">
                     <button type="submit" class="btn btn-primary btn-lg" id="submit-btn">
@@ -177,6 +181,28 @@
         const campoEndereco = document.getElementById('address-field');
         navigator.clipboard.writeText(campoEndereco.value);
         alert('Endereço copiado!');
+    }
+
+    // Função para prever taxa enquanto digita
+    function preverTaxa() {
+        const amount = parseFloat(document.getElementById('amount-field').value) || 0;
+        if (amount <= 0) {
+            document.getElementById('fee-preview').innerHTML = 'Taxa estimada: 0.0000 BTC | Custo total: 0.00 BTC';
+            return;
+        }
+
+        // Simula o cálculo do backend: TAXA_BASE (0.15) + (tamanho * 0.01)
+        // Um JSON de transação mockado tem cerca de 200-250 bytes
+        const taxaBase = 0.15;
+        const taxaPorByte = 0.01;
+        const tamanhoMock = 250; 
+        const taxaEstimada = taxaBase + (taxaPorByte * (tamanhoMock / 100)); // Ajuste de escala mock
+        const total = amount + taxaEstimada;
+
+        document.getElementById('fee-preview').innerHTML = `
+            Taxa estimada: <span class="text-primary">${taxaEstimada.toFixed(4)} BTC</span> | 
+            Custo total: <span class="fw-bold ${total > parseFloat(document.getElementById('balance-display').innerText) ? 'text-danger' : 'text-dark'}">${total.toFixed(2)} BTC</span>
+        `;
     }
 
     // Função para atualizar saldo
