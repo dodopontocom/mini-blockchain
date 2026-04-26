@@ -1,4 +1,4 @@
-# 🪨 mini-blockchain
+# 🪨 mini-blockchain v2
 
 Simulador de blockchain educacional com suporte a smart contracts, API REST e testes de performance.
 
