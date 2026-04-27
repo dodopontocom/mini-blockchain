@@ -65,7 +65,8 @@ case "$CMD" in
     [[ -z "$TO" ]] && fail "Faltando --to <addr>"
 
     SENDER=$(resolve "$FROM")
-    PAYLOAD=$(jq -n --arg s "$SENDER" --arg r "$TO" --arg sig "$SIGNATURE" '{sender: $s, receiver: $r, amount: 0, type: "call", data: {action: "ping"}, signature: $sig}')
+    RECEIVER=$(resolve "$TO")
+    PAYLOAD=$(jq -n --arg s "$SENDER" --arg r "$RECEIVER" --arg sig "$SIGNATURE" '{sender: $s, receiver: $r, amount: 0, type: "call", data: {action: "ping"}, signature: $sig}')
     curl -s -X POST "$API_URL/api/add-transaction" -H "Content-Type: application/json" -d "$PAYLOAD" | jq .
     ;;
 
@@ -82,7 +83,8 @@ case "$CMD" in
     [[ -z "$TO" ]] && fail "Faltando --to <addr>"
 
     SENDER=$(resolve "$FROM")
-    PAYLOAD=$(jq -n --arg s "$SENDER" --arg r "$TO" --arg sig "$SIGNATURE" '{sender: $s, receiver: $r, amount: 0, type: "call", data: {action: "recover"}, signature: $sig}')
+    RECEIVER=$(resolve "$TO")
+    PAYLOAD=$(jq -n --arg s "$SENDER" --arg r "$RECEIVER" --arg sig "$SIGNATURE" '{sender: $s, receiver: $r, amount: 0, type: "call", data: {action: "recover"}, signature: $sig}')
     curl -s -X POST "$API_URL/api/add-transaction" -H "Content-Type: application/json" -d "$PAYLOAD" | jq .
     ;;
 
@@ -99,7 +101,8 @@ case "$CMD" in
     [[ -z "$TO" ]] && fail "Faltando --to <addr>"
 
     SENDER=$(resolve "$FROM")
-    PAYLOAD=$(jq -n --arg s "$SENDER" --arg r "$TO" --arg sig "$SIGNATURE" '{sender: $s, receiver: $r, amount: 0, type: "call", data: {action: "revoke"}, signature: $sig}')
+    RECEIVER=$(resolve "$TO")
+    PAYLOAD=$(jq -n --arg s "$SENDER" --arg r "$RECEIVER" --arg sig "$SIGNATURE" '{sender: $s, receiver: $r, amount: 0, type: "call", data: {action: "revoke"}, signature: $sig}')
     curl -s -X POST "$API_URL/api/add-transaction" -H "Content-Type: application/json" -d "$PAYLOAD" | jq .
     ;;
 

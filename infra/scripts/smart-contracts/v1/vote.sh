@@ -51,7 +51,8 @@ case "$CMD" in
     [[ -z "$OPT" ]] && fail "Faltando --option <value>"
 
     SENDER=$(resolve "$FROM")
-    PAYLOAD=$(jq -n --arg s "$SENDER" --arg r "$TO" --arg o "$OPT" --arg sig "$SIGNATURE" '{sender: $s, receiver: $r, amount: 0, type: "call", data: {opt: $o}, signature: $sig}')
+    RECEIVER=$(resolve "$TO")
+    PAYLOAD=$(jq -n --arg s "$SENDER" --arg r "$RECEIVER" --arg o "$OPT" --arg sig "$SIGNATURE" '{sender: $s, receiver: $r, amount: 0, type: "call", data: {opt: $o}, signature: $sig}')
     curl -s -X POST "$API_URL/api/add-transaction" -H "Content-Type: application/json" -d "$PAYLOAD" | jq .
     ;;
 
