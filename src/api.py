@@ -165,6 +165,11 @@ class UserContracts(Resource):
                     if address in state.get('balances', {}):
                         is_relevant = True
                 
+                if 'total_staked' in state:
+                    contract_type = "stake_pool"
+                    if address in state.get('stakes', {}) or address in state.get('unstake_requests', {}):
+                        is_relevant = True
+                
                 # Se for relevante, adiciona à lista com informações extras
                 if is_relevant:
                     # Busca histórico de transações deste contrato (últimas 5)
@@ -553,6 +558,7 @@ def chamar_contrato():
         contract_address = request.form['contract_address']
         action = request.form['action']
         params = json.loads(request.form.get('params', '{}'))
+        amount = float(request.form.get('amount', 0))
 
         # Dados da transação
         sender_address = session['user']['address']
@@ -564,7 +570,7 @@ def chamar_contrato():
         transacao = {
             'sender': sender_address,
             'receiver': contract_address,
-            'amount': 0,
+            'amount': amount,
             'type': 'call',
             'data': {'action': action, **params},
             'signature': 'assinatura_mockada'

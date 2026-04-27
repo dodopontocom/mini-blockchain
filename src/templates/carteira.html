@@ -585,6 +585,55 @@
                             <strong>Meu Saldo no Vault:</strong> <span class="text-success fw-bold">${balance.toFixed(2)} BTC</span>
                         </div>
                     `;
+                } else if (c.type === 'stake_pool') {
+                    title = '🥩 Stake Pool';
+                    badge = '<span class="badge bg-warning text-dark">Stake</span>';
+                    
+                    const staked = c.state.stakes[userAddress] || 0;
+                    const rewards = (c.state.user_accrued_rewards || {})[userAddress] || 0;
+                    const request = (c.state.unstake_requests || {})[userAddress];
+                    const isOwner = c.state.owner === userAddress;
+                    
+                    let requestHtml = '';
+                    if (request) {
+                        const timeDiff = (Date.now() / 1000) - request.timestamp;
+                        const days = Math.floor(timeDiff / 86400);
+                        let feeMsg = 'Taxa atual: 3%';
+                        if (days === 1) feeMsg = 'Taxa atual: 2%';
+                        else if (days === 2) feeMsg = 'Taxa atual: 1%';
+                        else if (days >= 3) feeMsg = 'Taxa atual: 0% (Livre)';
+                        
+                        requestHtml = `
+                            <div class="mt-2 p-2 bg-light border rounded x-small">
+                                <div class="fw-bold text-primary">⏳ Pedido de Saque: ${request.amount} BTC</div>
+                                <div class="text-muted">${feeMsg} (${days} dias passados)</div>
+                                <button class="btn btn-sm btn-outline-primary w-100 mt-1" onclick="enviarWithdrawStake('${c.address}')">
+                                    Confirmar Saque
+                                </button>
+                            </div>
+                        `;
+                    }
+
+                    details = `
+                        <div class="small">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>Staked:</span>
+                                <span class="fw-bold">${staked.toFixed(2)} BTC</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>Rewards:</span>
+                                <span class="text-success fw-bold">${rewards.toFixed(4)} BTC</span>
+                            </div>
+                            
+                            <div class="mt-3 d-grid gap-2">
+                                <button class="btn btn-sm btn-primary" onclick="promptStake('${c.address}')">➕ Fazer Stake</button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="promptUnstake('${c.address}', ${staked})" ${staked <= 0 ? 'disabled' : ''}>🔓 Pedir Unstake</button>
+                                <button class="btn btn-sm btn-success" onclick="enviarClaimReward('${c.address}')" ${rewards <= 0 ? 'disabled' : ''}>💰 Resgatar Recompensas</button>
+                                ${isOwner ? `<button class="btn btn-sm btn-dark" onclick="promptFund('${c.address}')">⛽ Abastecer Pool (Dono)</button>` : ''}
+                            </div>
+                            ${requestHtml}
+                        </div>
+                    `;
                 } else {
                     title = '📄 Contrato';
                     badge = '<span class="badge bg-dark">Contrato</span>';
@@ -838,5 +887,87 @@
             btn.innerHTML = '🚀 Enviar Transação';
         }
     }
+
+     // --- FUNÇÕES STAKE POOL ---
+ 
+      function promptStake(address) {
+          let amount = prompt('Quanto você deseja colocar em stake?');
+          if (amount) {
+              amount = amount.replace(',', '.').trim();
+              if (!isNaN(amount) && parseFloat(amount) > 0) {
+                  enviarAcaoStake(address, 'stake', parseFloat(amount), true);
+              } else {
+                  alert('Valor inválido!');
+              }
+          }
+      }
+ 
+      function promptUnstake(address, max) {
+          let amount = prompt(`Quanto deseja pedir para retirar? (Max: ${max})`);
+          if (amount) {
+              amount = amount.replace(',', '.').trim();
+              if (!isNaN(amount) && parseFloat(amount) > 0) {
+                  if (parseFloat(amount) > max) {
+                      alert('Valor maior que seu stake atual!');
+                      return;
+                  }
+                  enviarAcaoStake(address, 'request_unstake', parseFloat(amount), false);
+              } else {
+                  alert('Valor inválido!');
+              }
+          }
+      }
+ 
+      function promptFund(address) {
+          let amount = prompt('Quanto deseja injetar na pool de recompensas?');
+          if (amount) {
+              amount = amount.replace(',', '.').trim();
+              if (!isNaN(amount) && parseFloat(amount) > 0) {
+                  enviarAcaoStake(address, 'fund', parseFloat(amount), true);
+              } else {
+                  alert('Valor inválido!');
+              }
+          }
+      }
+
+     async function enviarClaimReward(address) {
+         enviarAcaoStake(address, 'claim_reward', 0, false);
+     }
+
+     async function enviarWithdrawStake(address) {
+         enviarAcaoStake(address, 'withdraw_stake', 0, false);
+     }
+
+     async function enviarAcaoStake(contractAddress, action, amount, sendValue) {
+         try {
+            const params = {};
+            if (action === 'request_unstake') params.amount = amount;
+
+            const response = await fetch('/chamar-contrato', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    contract_address: contractAddress,
+                    action: action,
+                    params: JSON.stringify(params),
+                    amount: sendValue ? amount : 0
+                })
+            });
+
+            const result = await response.json();
+            
+            if (result.status === 'success') {
+                alert(`✅ Ação ${action} enviada com sucesso!`);
+                carregarContratos();
+                carregarPendentes();
+            } else {
+                throw new Error(result.message || 'Erro na execução');
+            }
+         } catch (error) {
+             alert(`❌ Erro: ${error.message}`);
+         }
+     }
 </script>
 {% endblock %}
