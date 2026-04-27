@@ -1,3 +1,5 @@
+# 📜 Smart Contracts
+
 ## 🧠 Entendendo os Smart Contracts
 
 Pense em um **Smart Contract** como uma "máquina de vendas" digital: você insere os dados (ou valores), a máquina processa as regras sozinha e entrega o resultado, sem precisar de um humano no meio para validar.
@@ -13,11 +15,11 @@ O diagrama abaixo mostra como os scripts interagem com esses contratos através 
 ```mermaid
 graph TD
     %% Nodes
-    Script["<b>smart-ops-v2.sh</b><br/>Controle remoto da blockchain"]
+    Script["smart-ops-v2.sh<br/>Controle remoto da blockchain"]
 
-    Voting["<b>🗳 Votação</b><br/>Enquete com opções"]
-    Vault["<b>🏦 Cofre (Vault)</b><br/>Banco on-chain"]
-    Heritage["<b>⏳ Herança</b><br/>Dead man's switch"]
+    Voting["🗳 Votação<br/>Enquete com opções"]
+    Vault["🏦 Cofre (Vault)<br/>Banco on-chain"]
+    Heritage["⏳ Herança<br/>Dead man's switch"]
 
     V1[deploy-vote]
     V2[vote]
@@ -28,9 +30,9 @@ graph TD
     H2[ping]
     H3[recover]
 
-    API["<b>API Blockchain</b><br/>localhost:5000"]
-    Nodes[("<b>nodes_data.json</b><br/>Endereços dos usuários")]
-    Block["<b>Bloco gravado</b><br/>Contrato executado"]
+    API["API Blockchain<br/>localhost:5000"]
+    Nodes[("nodes_data.json<br/>Endereços dos usuários")]
+    Block["Bloco gravado<br/>Contrato executado"]
 
     %% Connections
     Script --> Voting
@@ -46,7 +48,15 @@ graph TD
     Heritage --> H2
     Heritage --> H3
 
-    V1 & V2 & VA1 & VA2 & VA3 & H1 & H2 & H3 -- "Transação" --> API
+    V1 -- "Transação" --> API
+    V2 -- "Transação" --> API
+    VA1 -- "Transação" --> API
+    VA2 -- "Transação" --> API
+    VA3 -- "Transação" --> API
+    H1 -- "Transação" --> API
+    H2 -- "Transação" --> API
+    H3 -- "Transação" --> API
+
     API <--> Nodes
     API --> Block
 
