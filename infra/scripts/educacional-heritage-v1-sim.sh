@@ -10,7 +10,7 @@ BOLD='\033[1m'
 
 API_URL="http://localhost:5000"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SMART_OPS="$SCRIPT_DIR/smart-ops-v2.sh"
+SMART_OPS="$SCRIPT_DIR/smart-contracts/v1/heritage.sh"
 
 function header() {
     clear
@@ -42,7 +42,7 @@ echo -e "Parâmetros:\n  - Herdeiro: Bob\n  - Segredo: 'Ouro está no jardim'\n 
 echo ""
 
 # Executa deploy e captura o endereço do contrato
-DEPLOY_OUT=$($SMART_OPS deploy-heritage --from Alice --heir Bob --secret "Ouro está no jardim" --timeout 10)
+DEPLOY_OUT=$($SMART_OPS deploy --from Alice --heir Bob --secret "Ouro está no jardim" --timeout 10)
 CONTRACT_ADDR=$(echo "$DEPLOY_OUT" | grep -oE '[0-9a-f]{64}' | tail -n 1)
 
 if [ -z "$CONTRACT_ADDR" ]; then
