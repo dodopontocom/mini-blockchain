@@ -35,9 +35,11 @@ usage() {
   echo -e "  --max <amount>   : Maximum BTC amount"
   echo -e "  --txid <hash>    : Search for specific transaction hash"
   echo -e "  --pending        : Search only in pending transactions"
+  echo -e "  --balance        : Show wallet balances (can be filtered by --name, --min, --max)"
   echo ""
   echo -e "${CYAN}Example:${RESET}"
   echo -e "  $0 --name Alice --min 10"
+  echo -e "  $0 --balance --min 50"
   echo -e "  $0 --txid 5e88489..."
   exit 1
 }
@@ -50,6 +52,7 @@ MIN_AMT=0
 MAX_AMT=999999999
 TXID_FILTER=""
 SEARCH_PENDING=false
+SHOW_BALANCE=false
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -61,6 +64,7 @@ while [[ $# -gt 0 ]]; do
     --max)      MAX_AMT="$2"; shift 2 ;;
     --txid)     TXID_FILTER="$2"; shift 2 ;;
     --pending)  SEARCH_PENDING=true; shift ;;
+    --balance)  SHOW_BALANCE=true; shift ;;
     *) usage ;;
   esac
 done
@@ -81,6 +85,52 @@ R_NAME=$(resolve "$NAME_FILTER")
 R_SENDER=$(resolve "$SENDER_FILTER")
 R_RECEIVER=$(resolve "$RECEIVER_FILTER")
 
+# Build reverse lookup for names
+REVERSE_LOOKUP=$(jq -r 'to_entries | map("\(.value.address) \(.key)") | .[]' "$NODES_FILE")
+
+get_name() {
+  local addr="$1"
+  local name=$(echo "$REVERSE_LOOKUP" | grep "^$addr" | cut -d' ' -f2- || echo "")
+  [[ -n "$name" ]] && echo "$name" || echo "${addr:0:8}..."
+}
+
+# Check for --balance mode
+if [[ "$SHOW_BALANCE" == "true" ]]; then
+  step "Fetching wallet balances..."
+  BAL_DATA=$(curl -s "$API_URL/api/balances")
+  
+  step "Filtering balances..."
+  # Convert object to array of {address, balance}, filter
+  RESULTS=$(echo "$BAL_DATA" | jq -c "
+    to_entries | map({address: .key, balance: .value}) | .[] |
+    select(
+      (.balance >= ($MIN_AMT|tonumber)) and
+      (.balance <= ($MAX_AMT|tonumber)) and
+      (if \"$R_NAME\" != \"\" then .address == \"$R_NAME\" else true end)
+    )
+  ")
+
+  COUNT=$(echo "$RESULTS" | grep -c . || echo 0)
+  if [[ "$COUNT" -eq 0 ]]; then
+    warn "No balances found matching criteria."
+    exit 0
+  fi
+
+  echo "────────────────────────────────────────────"
+  printf "${BOLD}%-25s | %s${RESET}\n" "Nome/Endereço" "Saldo (BTC)"
+  echo "────────────────────────────────────────────"
+  while read -r entry; do
+    ADDR=$(echo "$entry" | jq -r '.address')
+    BAL=$(echo "$entry" | jq -r '.balance')
+    NAME=$(get_name "$ADDR")
+    
+    LC_NUMERIC=C printf "${CYAN}%-25s${RESET} | ${GREEN}%14.4f BTC${RESET}\n" "$NAME" "$BAL"
+  done <<< "$RESULTS"
+  echo "────────────────────────────────────────────"
+  ok "Total: $COUNT wallet(s) listed."
+  exit 0
+fi
+
 # Fetch data
 if [[ "$SEARCH_PENDING" == "true" ]]; then
   step "Fetching pending transactions..."
@@ -90,15 +140,6 @@ else
   # Flatten all transactions from all blocks
   RAW_DATA=$(curl -s "$API_URL/api/blocks" | jq '[.[].transactions[]]')
 fi
-
-# Build reverse lookup for names
-REVERSE_LOOKUP=$(jq -r 'to_entries | map("\(.value.address) \(.key)") | .[]' "$NODES_FILE")
-
-get_name() {
-  local addr="$1"
-  local name=$(echo "$REVERSE_LOOKUP" | grep "^$addr" | cut -d' ' -f2- || echo "")
-  [[ -n "$name" ]] && echo "$name" || echo "${addr:0:8}..."
-}
 
 # Apply Filters with JQ
 step "Filtering results..."
