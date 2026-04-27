@@ -29,7 +29,7 @@ class Block:
         return self.__dict__
 
 class Blockchain:
-    def __init__(self):
+    def __init__(self, start_miner=False):
         self.chain = []
         self.pending_transactions = []
         self.state = {} # Smart Contract State: {contract_addr: {storage}}
@@ -38,7 +38,16 @@ class Blockchain:
         self.load_from_file()
         if not self.chain:
             self.create_genesis_block()
-        self.start_auto_mining()
+        if start_miner:
+            self.start_auto_mining()
+
+    def add_transaction(self, transaction):
+        """Adiciona transação com segurança e sincronização"""
+        with lock:
+            self.load_from_file()
+            self.pending_transactions.append(transaction)
+            self.save_to_file()
+            return True
 
     def create_genesis_block(self):
         genesis = Block(0, [], "0", 0, time.time(), self.get_state_hash())
@@ -154,57 +163,50 @@ class Blockchain:
 
     def mine_block(self, miner_address):
         with lock:
-            if os.path.exists(DATA_FILE):
-                with open(DATA_FILE, 'r') as f:
-                    data = json.load(f)
-                    pending = data.get('pending_transactions', [])
-                    # Sincroniza estado e contratos antes de minerar
-                    self.state = data.get('state', {})
-                    self.contracts = data.get('contracts', {})
-            else: 
-                pending = []
-                self.state = {}
-                self.contracts = {}
+            # Recarrega TUDO do arquivo antes de minerar para evitar sobrescrever dados de outros processos
+            self.load_from_file()
+            
+            if not self.pending_transactions: 
+                return None
 
-        if not pending: return
+            # Limita a 200 transações por bloco para manter a eficiência sob estresse
+            batch = self.pending_transactions[:200]
+            remaining = self.pending_transactions[200:]
 
-        # Limita a 200 transações por bloco para manter a eficiência sob estresse
-        batch = pending[:200]
-        remaining = pending[200:]
+            # Processa contratos antes de fechar o bloco
+            self.process_contracts(batch)
+            
+            # Coinbase
+            total_fees = sum(tx.get('fee', 0) for tx in batch)
+            block_transactions = batch.copy()
+            block_transactions.append({
+                'sender': 'coinbase',
+                'receiver': miner_address,
+                'amount': 0.5 + total_fees,
+                'type': 'reward',
+                'signature': 'mining_reward'
+            })
 
-        # Processa contratos antes de fechar o bloco
-        self.process_contracts(batch)
-        
-        # Coinbase
-        total_fees = sum(tx.get('fee', 0) for tx in batch)
-        block_transactions = batch.copy()
-        block_transactions.append({
-            'sender': 'coinbase',
-            'receiver': miner_address,
-            'amount': 0.5 + total_fees,
-            'type': 'reward',
-            'signature': 'mining_reward'
-        })
+            last_block = self.chain[-1]
+            new_block = Block(
+                index=len(self.chain),
+                transactions=block_transactions,
+                previous_hash=last_block.hash,
+                nonce=0,
+                timestamp=time.time(),
+                state_root=self.get_state_hash()
+            )
 
-        last_block = self.chain[-1]
-        new_block = Block(
-            index=len(self.chain),
-            transactions=block_transactions,
-            previous_hash=last_block.hash,
-            nonce=0,
-            timestamp=time.time(),
-            state_root=self.get_state_hash()
-        )
+            # Proof of Work
+            while not new_block.hash.startswith('0' * DIFFICULTY):
+                new_block.nonce += 1
+                new_block.hash = self.compute_hash(new_block)
 
-        # Proof of Work
-        while not new_block.hash.startswith('0' * DIFFICULTY):
-            new_block.nonce += 1
-            new_block.hash = self.compute_hash(new_block)
-
-        self.chain.append(new_block)
-        self.pending_transactions = remaining
-        self.save_to_file()
-        print(f"📦 Bloco #{new_block.index} minerado com {len(batch)} transações!")
+            self.chain.append(new_block)
+            self.pending_transactions = remaining
+            self.save_to_file()
+            print(f"📦 Bloco #{new_block.index} minerado com {len(batch)} transações!")
+            return new_block
 
     def start_auto_mining(self):
         def loop():
@@ -238,7 +240,8 @@ if not os.path.exists(NODES_FILE):
     with open(NODES_FILE, 'w') as f: 
         json.dump(node_data, f, indent=4)
 
-blockchain = Blockchain()
+# Define se inicia o minerador (apenas se rodar blockc.py diretamente)
+blockchain = Blockchain(start_miner=(__name__ == '__main__'))
 
 if __name__ == '__main__':
     print("💎 Blockchain VM Ativa. Aguardando transações...")

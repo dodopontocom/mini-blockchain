@@ -6,10 +6,11 @@ NODES_FILE = "nodes_data.json"
 LOCK_FILE = "blockchain.lock"
 
 # Configurações de Taxas
-TAXA_BASE = 0.15
-TAXA_POR_BYTE = 0.01
-TAXA_MINIMA = 0.1
+TAXA_BASE = 0.001
+TAXA_POR_BYTE = 0.0001
+TAXA_POR_VALOR = 0.005 # 0.5% do valor da transação
+TAXA_MINIMA = 0.001
 
 # Configurações de Mineração
-DIFFICULTY = 2
+DIFFICULTY = 4
 INTERVALO_MINERACAO = 5

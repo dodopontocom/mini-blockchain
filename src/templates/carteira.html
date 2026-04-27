@@ -58,7 +58,12 @@
                     <li>
                         <a class="dropdown-item {% if name == session.user.name %}active{% endif %}" 
                            href="/carteira?user={{ name }}">
-                           {{ name }} <br>
+                           <div class="d-flex justify-content-between align-items-center">
+                               <span>{{ name }}</span>
+                               {% if info.address in addr_with_contracts %}
+                               <span class="badge bg-primary rounded-pill" title="Possui Contratos Ativos">📜</span>
+                               {% endif %}
+                           </div>
                            <small class="text-muted">{{ info.address[:10] }}...</small>
                         </a>
                     </li>
@@ -139,6 +144,23 @@
 
     <!-- Blocos Minerados -->
     <div class="row">
+        <!-- Coluna de Contratos Inteligentes -->
+        <div class="col-12 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">📜 Meus Contratos Inteligentes</h5>
+                    <button class="btn btn-sm btn-light" onclick="carregarContratos()">🔄 Atualizar</button>
+                </div>
+                <div class="card-body">
+                    <div id="contracts-container" class="row">
+                        <div class="col-12 text-center text-muted p-4">
+                            Verificando interações com contratos...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="col-md-6">
             <div class="card mt-4">
                 <div class="card-header bg-dark text-white">
@@ -194,9 +216,11 @@
         atualizarSaldo();
         carregarBlocos();
         carregarPendentes();
+        carregarContratos();
         setInterval(atualizarSaldo, 10000);
         setInterval(carregarBlocos, 15000);
         setInterval(carregarPendentes, 5000);
+        setInterval(carregarContratos, 10000);
     });
 
     // Função para copiar endereço
@@ -392,6 +416,96 @@
             `).join('');
         } catch (error) {
             console.error('Erro ao carregar pendentes:', error);
+        }
+    }
+
+    // Função para carregar contratos relevantes
+    async function carregarContratos() {
+        try {
+            const response = await fetch(`/api/user-contracts/{{ session.user.address }}`);
+            const contracts = await response.json();
+            const container = document.getElementById('contracts-container');
+            const userAddress = '{{ session.user.address }}';
+
+            if (contracts.length === 0) {
+                container.innerHTML = '<div class="col-12 text-center text-muted p-4">Nenhum contrato inteligente vinculado a esta carteira.</div>';
+                return;
+            }
+
+            container.innerHTML = contracts.map(c => {
+                let badge = '';
+                let details = '';
+                let title = '';
+                
+                if (c.type === 'voting') {
+                    title = '🗳️ Votação';
+                    badge = '<span class="badge bg-info">Voting</span>';
+                    details = `
+                        <div class="small">
+                            <strong>Status:</strong> Voto computado<br>
+                            <strong>Opções:</strong> ${Object.keys(c.state.results).join(', ')}
+                        </div>
+                    `;
+                } else if (c.type === 'heritage') {
+                    title = '⚰️ Herança';
+                    badge = '<span class="badge bg-danger">Heritage</span>';
+                    
+                    const isOwner = c.state.owner === userAddress;
+                    const isHeir = c.state.heir === userAddress;
+                    const diff = (Date.now() / 1000) - c.state.last_seen;
+                    const timeLeft = Math.max(0, c.state.timeout - diff);
+                    const status = c.state.status || 'ATIVO';
+                    
+                    let timerHtml = '';
+                    if (status === 'ATIVO') {
+                        const color = timeLeft < 60 ? 'text-danger' : 'text-success';
+                        timerHtml = `<div class="mt-2 fw-bold ${color}">⏳ Timeout Ping: ${timeLeft.toFixed(0)}s</div>`;
+                    } else {
+                        timerHtml = `<div class="mt-2 fw-bold text-muted">Status: ${status}</div>`;
+                    }
+
+                    details = `
+                        <div class="small">
+                            <strong>Papel:</strong> ${isOwner ? 'Dono (Owner)' : 'Herdeiro (Heir)'}<br>
+                            <strong>Valor Travado:</strong> ${c.state.locked_amount || 0} BTC<br>
+                            ${timerHtml}
+                        </div>
+                    `;
+                } else if (c.type === 'vault') {
+                    title = '🏦 Vault';
+                    badge = '<span class="badge bg-secondary">Vault</span>';
+                    const balance = c.state.balances[userAddress] || 0;
+                    details = `
+                        <div class="small">
+                            <strong>Meu Saldo no Vault:</strong> <span class="text-success fw-bold">${balance.toFixed(2)} BTC</span>
+                        </div>
+                    `;
+                } else {
+                    title = '📄 Contrato';
+                    badge = '<span class="badge bg-dark">Contrato</span>';
+                    details = `<div class="small text-muted">Contrato genérico ou desconhecido</div>`;
+                }
+
+                return `
+                    <div class="col-md-4 mb-3">
+                        <div class="card h-100 border-start border-4 shadow-sm" style="border-left-color: #007bff !important;">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h6 class="card-title mb-0">${title}</h6>
+                                    ${badge}
+                                </div>
+                                <div class="text-muted x-small mb-2 text-truncate" title="${c.address}">
+                                    ${c.address}
+                                </div>
+                                ${details}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+        } catch (error) {
+            console.error('Erro ao carregar contratos:', error);
         }
     }
 

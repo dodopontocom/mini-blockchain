@@ -88,7 +88,7 @@ class TransactionSimulator:
                 'sender': sender_address,
                 'receiver': receiver_address,
                 'amount': valor,
-                'fee': round(fee, 2),
+                'fee': fee,
                 'signature': f"simulated_sign_{random.randint(1000,9999)}"  # NOVO CAMPO
             }
             

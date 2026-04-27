@@ -99,23 +99,69 @@ def carregar_nodes():
 class Blocks(Resource):
     @api.marshal_list_with(block_model)
     def get(self):
-        data = get_blockchain_data()
-        return data['chain']
+        from src.blockc import blockchain
+        with lock:
+            blockchain.load_from_file()
+            return [b.to_dict() for b in blockchain.chain]
 
 @api.route('/pending-transactions')
 class PendingTransactions(Resource):
     def get(self):
-        data = get_blockchain_data()
-        return data.get('pending_transactions', [])
+        from src.blockc import blockchain
+        with lock:
+            blockchain.load_from_file()
+            return blockchain.pending_transactions
 
 @api.route('/contracts')
 class Contracts(Resource):
     def get(self):
-        data = get_blockchain_data()
-        return {
-            "contracts": data.get('contracts', {}),
-            "states": data.get('state', {})
-        }
+        from src.blockc import blockchain
+        with lock:
+            blockchain.load_from_file()
+            return {
+                "contracts": blockchain.contracts,
+                "states": blockchain.state
+            }
+
+@api.route('/user-contracts/<address>')
+class UserContracts(Resource):
+    @api.doc(description='Retorna contratos relevantes para um endereço')
+    def get(self, address):
+        from src.blockc import blockchain
+        with lock:
+            blockchain.load_from_file()
+            relevant_contracts = []
+            
+            for contract_addr, state in blockchain.state.items():
+                is_relevant = False
+                contract_type = "unknown"
+                
+                # Detecta tipo e relevância
+                if 'voters' in state:
+                    contract_type = "voting"
+                    if address in state.get('voters', []):
+                        is_relevant = True
+                
+                if 'owner' in state or 'heir' in state:
+                    contract_type = "heritage"
+                    if address == state.get('owner') or address == state.get('heir'):
+                        is_relevant = True
+                
+                if 'balances' in state:
+                    contract_type = "vault"
+                    if address in state.get('balances', {}):
+                        is_relevant = True
+                
+                # Se for relevante, adiciona à lista com informações extras
+                if is_relevant:
+                    relevant_contracts.append({
+                        "address": contract_addr,
+                        "type": contract_type,
+                        "state": state,
+                        "timestamp": time.time() # Para cálculos de timeout no frontend
+                    })
+            
+            return relevant_contracts
 
 @api.route('/add-transaction')
 class AddTransaction(Resource):
@@ -181,10 +227,8 @@ class AddTransaction(Resource):
             if total_cost > current_balance:
                 return {"message": f"Saldo insuficiente! Disponível: {current_balance:.2f}"}, 400
 
-            blockchain_data['pending_transactions'].append(new_transaction)
-            
-            with open(DATA_FILE, 'w') as f:
-                json.dump(blockchain_data, f, indent=4)
+            from src.blockc import blockchain
+            blockchain.add_transaction(new_transaction)
 
         return {"message": "Transação adicionada com sucesso!", "transaction": new_transaction}, 201
 
@@ -192,7 +236,15 @@ class AddTransaction(Resource):
 class Balances(Resource):
     @api.doc(description='Retorna saldos de todas as carteiras')
     def get(self):
-        data = get_blockchain_data()
+        from src.blockc import blockchain
+        with lock:
+            blockchain.load_from_file()
+            data = {
+                'chain': [b.to_dict() for b in blockchain.chain],
+                'pending_transactions': blockchain.pending_transactions,
+                'contracts': blockchain.contracts,
+                'state': blockchain.state
+            }
         balances = {}
         INITIAL_BALANCE = 100.0
         
@@ -328,6 +380,19 @@ def carteira():
     if not nodes:
         return render_template('erro.html', mensagem="Nenhum nó encontrado no sistema.")
     
+    # Identifica endereços com contratos ativos
+    from src.blockc import blockchain
+    with lock:
+        blockchain.load_from_file()
+        addr_with_contracts = set()
+        for state in blockchain.state.values():
+            if 'voters' in state:
+                for v in state.get('voters', []): addr_with_contracts.add(v)
+            if 'owner' in state: addr_with_contracts.add(state['owner'])
+            if 'heir' in state: addr_with_contracts.add(state['heir'])
+            if 'balances' in state:
+                for v in state.get('balances', {}): addr_with_contracts.add(v)
+
     # Se o parâmetro ?user=Nome estiver presente, troca o usuário da sessão
     requested_user = request.args.get('user')
     if requested_user in nodes:
@@ -344,7 +409,7 @@ def carteira():
             'address': nodes[first_node]['address']
         }
     
-    return render_template('carteira.html', user=session['user'], nodes=nodes)
+    return render_template('carteira.html', user=session['user'], nodes=nodes, addr_with_contracts=addr_with_contracts)
 
 @app.route('/blockchain')
 def blockchain_view():
@@ -360,100 +425,15 @@ def hash_tool():
 
 @app.route('/mine', methods=['POST'])
 def mine():
-    with lock:
-        data = get_blockchain_data()
-        pending = data.get('pending_transactions', [])
-        
-        if not pending:
-             return jsonify({'status': 'error', 'message': 'Sem transações para minerar'}), 400
-
-        # Carrega contratos e estado existentes
-        contracts = data.get('contracts', {})
-        state = data.get('state', {})
-
-        # Processa transações de contrato
-        for tx in pending:
-            tx_type = tx.get('type')
-            
-            if tx_type == 'deploy':
-                code = tx.get('data')
-                # Se for apenas o nome, tenta carregar o arquivo
-                if code and not '\n' in code and os.path.exists(f"src/contracts/{code}.py"):
-                    with open(f"src/contracts/{code}.py", 'r') as f:
-                        code = f.read()
-                        tx['data'] = code
-
-                contract_addr = hashlib.sha256((tx['sender'] + str(code) + str(tx['timestamp'])).encode()).hexdigest()[:40]
-                contracts[contract_addr] = code
-                state[contract_addr] = {}
-                tx['contract_address'] = contract_addr
-                
-                # Executa inicialização
-                storage = state[contract_addr]
-                msg = {'sender': tx['sender'], 'amount': tx['amount'], 'params': tx.get('data_params', {}), 'timestamp': tx.get('timestamp', time.time())}
-                try:
-                    exec_env = {'storage': storage, 'msg': msg, 'result': None, 'payout': None}
-                    exec(code, {}, exec_env)
-                    state[contract_addr] = exec_env['storage']
-                    tx['execution_result'] = exec_env['result']
-                    if exec_env.get('payout'):
-                         payout_data = exec_env['payout']
-                         if 'amount' in payout_data:
-                             payout_data['amount'] = float(payout_data['amount'])
-                         tx['payout'] = payout_data
-                except Exception as e:
-                    tx['execution_error'] = str(e)
-
-            elif tx_type == 'call':
-                contract_addr = tx.get('receiver')
-                if contract_addr in contracts:
-                    code = contracts[contract_addr]
-                    storage = state.get(contract_addr, {})
-                    msg = {'sender': tx['sender'], 'amount': tx['amount'], 'params': tx.get('data', {}), 'timestamp': tx.get('timestamp', time.time())}
-                    try:
-                        exec_env = {'storage': storage, 'msg': msg, 'result': None, 'payout': None}
-                        exec(code, {}, exec_env)
-                        state[contract_addr] = exec_env['storage']
-                        tx['execution_result'] = exec_env['result']
-                        if exec_env.get('payout'):
-                             payout_data = exec_env['payout']
-                             if 'amount' in payout_data:
-                                 payout_data['amount'] = float(payout_data['amount'])
-                             tx['payout'] = payout_data
-                    except Exception as e:
-                        tx['execution_error'] = str(e)
-
-        # Atualiza dados da chain
-        miner_address = session.get('user', {}).get('address', '00000000')
-        last_block = data['chain'][-1] if data['chain'] else {'hash': '0', 'index': -1}
-        
-        new_block = {
-            'index': last_block['index'] + 1,
-            'transactions': pending + [{
-                'sender': 'coinbase',
-                'receiver': miner_address,
-                'amount': 0.5 + sum(tx.get('fee', 0) for tx in pending),
-                'type': 'reward',
-                'signature': 'mining_reward'
-            }],
-            'previous_hash': last_block['hash'],
-            'nonce': random.randint(0, 1000),
-            'timestamp': time.time(),
-            'tr_count': len(pending) + 1
-        }
-        
-        block_content = json.dumps(new_block, sort_keys=True).encode()
-        new_block['hash'] = hashlib.sha256(block_content).hexdigest()
-        
-        data['chain'].append(new_block)
-        data['pending_transactions'] = []
-        data['contracts'] = contracts
-        data['state'] = state
-        
-        with open(DATA_FILE, 'w') as f:
-            json.dump(data, f, indent=4)
-
-    return jsonify({'status': 'success', 'message': f'Bloco #{new_block["index"]} minerado!'})
+    from src.blockc import blockchain
+    
+    miner_address = session.get('user', {}).get('address', '00000000')
+    new_block = blockchain.mine_block(miner_address)
+    
+    if new_block:
+        return jsonify({'status': 'success', 'message': f'Bloco #{new_block.index} minerado!'})
+    else:
+        return jsonify({'status': 'error', 'message': 'Sem transações para minerar'}), 400
 
 @app.route('/enviar-transacao', methods=['POST'])
 def enviar_transacao():
