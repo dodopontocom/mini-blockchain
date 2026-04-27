@@ -1,7 +1,13 @@
 #!/usr/bin/env python3
 
-storage['results'] = storage.get('results', {opt: 0 for opt in msg['params'].get('options', [])})
-storage['voters'] = storage.get('voters', [])
+# Inicialização (Executa no deploy)
+if 'results' not in storage:
+    options = msg['params'].get('options', [])
+    storage['results'] = {opt: 0 for opt in options}
+    storage['voters'] = []
+    result = 'Votacao Iniciada'
+
+# Lógica de Execução
 opt = msg['params'].get('opt')
 if opt:
     if msg['sender'] in storage['voters']:
@@ -12,5 +18,3 @@ if opt:
         storage['results'][opt] += 1
         storage['voters'].append(msg['sender'])
         result = f'Voto computado para {opt}'
-else:
-    result = 'Votacao Ativa'

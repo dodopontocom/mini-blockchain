@@ -90,11 +90,21 @@ echo -e "${BOLD}Subindo serviços...${RESET}"
 echo -e "${YELLOW}  Ctrl+C para encerrar tudo${RESET}"
 echo ""
 
+# Inicializa PIDs para evitar erros de unbound variable no cleanup
+BLOCKC_PID=""
+API_PID=""
+SIM_PID=""
+
+# Define PYTHONPATH para que os imports 'from src...' funcionem
+export PYTHONPATH="${PYTHONPATH:-}:$(pwd)"
+
 # mata processos filhos ao sair
 cleanup() {
   echo ""
   echo -e "${YELLOW}Encerrando...${RESET}"
-  kill "$BLOCKC_PID" "$API_PID" "$SIM_PID" 2>/dev/null || true
+  [ -n "$BLOCKC_PID" ] && kill "$BLOCKC_PID" 2>/dev/null || true
+  [ -n "$API_PID" ] && kill "$API_PID" 2>/dev/null || true
+  [ -n "$SIM_PID" ] && kill "$SIM_PID" 2>/dev/null || true
   command -v deactivate >/dev/null 2>&1 && deactivate || true
 }
 trap cleanup EXIT INT TERM

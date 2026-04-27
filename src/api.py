@@ -9,8 +9,9 @@ import string
 import time
 
 # Commons
-from src.commons.config import DATA_FILE, NODES_FILE, TAXA_BASE, TAXA_POR_BYTE, TAXA_MINIMA
+from src.commons.config import DATA_FILE, NODES_FILE, TAXA_BASE, TAXA_POR_BYTE, TAXA_MINIMA, LOCK_FILE
 from src.commons.helpers import lock, calcular_taxa
+from filelock import FileLock
 
 # Inicialização do Flask
 app = Flask(__name__, 
@@ -48,78 +49,73 @@ transaction_model = api.model('Transaction', {
     'sender': fields.String(required=True),
     'receiver': fields.String(required=True),
     'amount': fields.Float(required=True),
-    'type': fields.String(description='transfer, deploy, call'),
-    'data': fields.Raw(description='Código do contrato ou parâmetros da chamada'),
     'fee': fields.Float,
-    'signature': fields.String(required=True)
+    'signature': fields.String(required=True),
+    'type': fields.String,
+    'data': fields.Raw,
+    'data_params': fields.Raw
 })
 
 # ===========================================
-#               FUNÇÕES AUXILIARES
+#                  HELPERS
 # ===========================================
-def carregar_nodes():
-    """Carrega e valida os nós do arquivo"""
-    try:
-        with lock:
-            with open(NODES_FILE, 'r') as f:
-                nodes = json.load(f)
-                
-                # Validação da estrutura
-                for name, data in nodes.items():
-                    if 'address' not in data:
-                        raise ValueError(f"Nó {name} não tem endereço válido")
-                
-                return nodes
-                
-    except Exception as e:
-        print(f"Erro crítico ao carregar nós: {str(e)}")
-        raise
-
 def get_blockchain_data():
     with lock:
         if not os.path.exists(DATA_FILE):
-            return {"chain": [], "pending_transactions": []}
-        
+            # Estado inicial se não houver arquivo
+            genesis_block = {
+                'index': 0,
+                'transactions': [],
+                'previous_hash': "0",
+                'nonce': 0,
+                'timestamp': time.time(),
+                'hash': "0000" + "0" * 60,
+                'tr_count': 0
+            }
+            data = {
+                'chain': [genesis_block],
+                'pending_transactions': [],
+                'contracts': {},
+                'state': {}
+            }
+            with open(DATA_FILE, 'w') as f:
+                json.dump(data, f, indent=4)
+            return data
+            
         with open(DATA_FILE, 'r') as f:
             return json.load(f)
 
+def carregar_nodes():
+    if not os.path.exists(NODES_FILE):
+        return {}
+    with open(NODES_FILE, 'r') as f:
+        return json.load(f)
+
 # ===========================================
-#               ENDPOINTS DA API
+#                 ENDPOINTS
 # ===========================================
-@api.route('/state')
-class State(Resource):
-    @api.doc(description='Retorna o estado global de todos os Smart Contracts')
-    def get(self):
-        with lock:
-            if not os.path.exists(DATA_FILE): return {}
-            with open(DATA_FILE, 'r') as f:
-                return json.load(f).get('state', {})
 
 @api.route('/blocks')
 class Blocks(Resource):
-    @api.doc(description='Lista todos os blocos da blockchain')
     @api.marshal_list_with(block_model)
     def get(self):
         data = get_blockchain_data()
         return data['chain']
 
-@api.route('/blocks/<int:index>')
-class BlockDetail(Resource):
-    @api.doc(description='Retorna detalhes de um bloco específico')
-    @api.marshal_with(block_model)
-    def get(self, index):
-        data = get_blockchain_data()
-        if index < len(data['chain']):
-            return data['chain'][index]
-        api.abort(404, "Bloco não encontrado")
-
 @api.route('/pending-transactions')
 class PendingTransactions(Resource):
-    @api.doc(description='Lista transações pendentes')
-    @api.marshal_list_with(transaction_model)
     def get(self):
         data = get_blockchain_data()
-        return data['pending_transactions']
+        return data.get('pending_transactions', [])
+
+@api.route('/contracts')
+class Contracts(Resource):
+    def get(self):
+        data = get_blockchain_data()
+        return {
+            "contracts": data.get('contracts', {}),
+            "states": data.get('state', {})
+        }
 
 @api.route('/add-transaction')
 class AddTransaction(Resource):
@@ -199,137 +195,153 @@ class Balances(Resource):
         # Inicialização de saldos
         for block in data['chain']:
             for tx in block['transactions']:
-                for field in ['sender', 'receiver']:
-                    if tx[field] not in balances:
-                        balances[tx[field]] = INITIAL_BALANCE
+                s = tx['sender']
+                r = tx['receiver']
+                
+                if s != 'coinbase' and s not in balances:
+                    balances[s] = INITIAL_BALANCE
+                if r != 'contract_deploy' and r not in balances:
+                    balances[r] = INITIAL_BALANCE
         
         # Cálculo de saldos (blocos confirmados)
         for block in data['chain']:
             for tx in block['transactions']:
                 if tx['sender'] != 'coinbase':
-                    balances[tx['sender']] -= tx['amount'] + tx.get('fee', 0)
-                balances[tx['receiver']] += tx['amount']
+                    balances[tx['sender']] -= (tx['amount'] + tx.get('fee', 0))
+                if tx['receiver'] != 'contract_deploy':
+                    balances[tx['receiver']] += tx['amount']
         
-        # Subtrair transações pendentes do saldo do remetente
+        # Pendentes (bloqueia saldo)
         for tx in data.get('pending_transactions', []):
-            sender = tx['sender']
-            if sender != 'coinbase':
-                if sender not in balances:
-                    balances[sender] = INITIAL_BALANCE
-                balances[sender] -= tx['amount'] + tx.get('fee', 0)
-        
+            s = tx['sender']
+            if s not in balances:
+                balances[s] = INITIAL_BALANCE
+            balances[s] -= (tx['amount'] + tx.get('fee', 0))
+
         return balances
 
-@api.route('/contracts')
-class Contracts(Resource):
-    @api.doc(description='Retorna todos os contratos (código e estado)')
-    def get(self):
-        with lock:
-            if not os.path.exists(DATA_FILE): return {}
-            with open(DATA_FILE, 'r') as f:
-                data = json.load(f)
-                return {
-                    "contracts": data.get('contracts', {}),
-                    "states": data.get('state', {})
-                }
+# ===========================================
+#               ROTAS DA UI
+# ===========================================
 
-# ===========================================
-#               FRONT-END
-# ===========================================
 @app.route('/')
 def index():
     return render_template('index.html')
 
 @app.route('/contratos')
-def contratos_view():
+def contratos():
     return render_template('contratos.html')
 
 @app.route('/carteira')
 def carteira():
-    # Carrega todos os nós
-    try:
-        nodes = carregar_nodes()
-    except FileNotFoundError:
-        return render_template('erro.html', mensagem="Arquivo de nós não encontrado!")
-
-    # Sincroniza dados do usuário se ele já estiver na sessão
-    if 'user' in session:
-        name = session['user']['name']
-        if name in nodes:
-            session['user']['address'] = nodes[name]['address']
-        else:
-            session.pop('user') # Usuário não existe mais
-
-    # Seleciona um nó aleatório se não houver usuário
+    nodes = carregar_nodes()
+    # Se não houver nodes, o usuário precisa ser redirecionado ou criado
+    if not nodes:
+        return render_template('erro.html', mensagem="Nenhum nó encontrado no sistema.")
+    
+    # Simula login com o primeiro nó se não houver sessão
     if 'user' not in session:
-        if not nodes:
-            return render_template('erro.html', mensagem="Nenhum usuário cadastrado!")
-            
-        user_name, user_data = random.choice(list(nodes.items()))
+        first_node = list(nodes.keys())[0]
         session['user'] = {
-            'name': user_name,
-            'address': user_data['address']
+            'name': first_node,
+            'address': nodes[first_node]['address']
         }
-
-    return render_template('carteira.html')
+    
+    return render_template('carteira.html', user=session['user'], nodes=nodes)
 
 @app.route('/blockchain')
 def blockchain_view():
     return render_template('blockchain.html')
 
+@app.route('/heritage-sim')
+def heritage_sim():
+    return render_template('heritage_sim.html')
+
 @app.route('/mine', methods=['POST'])
 def mine():
-    with FileLock(LOCK_FILE):
+    with lock:
         data = get_blockchain_data()
         pending = data.get('pending_transactions', [])
         
-        # Seleciona um minerador aleatório (ou o usuário logado)
+        if not pending:
+             return jsonify({'status': 'error', 'message': 'Sem transações para minerar'}), 400
+
+        # Carrega contratos e estado existentes
+        contracts = data.get('contracts', {})
+        state = data.get('state', {})
+
+        # Processa transações de contrato
+        for tx in pending:
+            tx_type = tx.get('type')
+            
+            if tx_type == 'deploy':
+                code = tx.get('data')
+                # Se for apenas o nome, tenta carregar o arquivo
+                if code and not '\n' in code and os.path.exists(f"src/contracts/{code}.py"):
+                    with open(f"src/contracts/{code}.py", 'r') as f:
+                        code = f.read()
+                        tx['data'] = code
+
+                contract_addr = hashlib.sha256((tx['sender'] + str(code) + str(tx['timestamp'])).encode()).hexdigest()[:40]
+                contracts[contract_addr] = code
+                state[contract_addr] = {}
+                tx['contract_address'] = contract_addr
+                
+                # Executa inicialização
+                storage = state[contract_addr]
+                msg = {'sender': tx['sender'], 'amount': tx['amount'], 'params': tx.get('data_params', {}), 'timestamp': tx.get('timestamp', time.time())}
+                try:
+                    exec_env = {'storage': storage, 'msg': msg, 'result': None}
+                    exec(code, {}, exec_env)
+                    state[contract_addr] = exec_env['storage']
+                    tx['execution_result'] = exec_env['result']
+                except Exception as e:
+                    tx['execution_error'] = str(e)
+
+            elif tx_type == 'call':
+                contract_addr = tx.get('receiver')
+                if contract_addr in contracts:
+                    code = contracts[contract_addr]
+                    storage = state.get(contract_addr, {})
+                    msg = {'sender': tx['sender'], 'amount': tx['amount'], 'params': tx.get('data', {}), 'timestamp': tx.get('timestamp', time.time())}
+                    try:
+                        exec_env = {'storage': storage, 'msg': msg, 'result': None}
+                        exec(code, {}, exec_env)
+                        state[contract_addr] = exec_env['storage']
+                        tx['execution_result'] = exec_env['result']
+                    except Exception as e:
+                        tx['execution_error'] = str(e)
+
+        # Atualiza dados da chain
         miner_address = session.get('user', {}).get('address', '00000000')
-        
-        # Lógica simplificada de mineração para a API
-        if not data['chain']:
-            # Genesis se não existir
-            last_block_hash = "0"
-            index = 0
-        else:
-            last_block = data['chain'][-1]
-            last_block_hash = last_block['hash']
-            index = len(data['chain'])
-        
-        # Cálculo de taxas
-        total_fees = sum(tx.get('fee', 0) for tx in pending)
-        recompensa = max(total_fees, 0.5)
-        
-        # Adiciona coinbase
-        block_transactions = pending.copy()
-        block_transactions.append({
-            'sender': 'coinbase',
-            'receiver': miner_address,
-            'amount': recompensa,
-            'fee': 0.0,
-            'signature': 'mining_reward'
-        })
+        last_block = data['chain'][-1] if data['chain'] else {'hash': '0', 'index': -1}
         
         new_block = {
-            'index': index,
-            'transactions': block_transactions,
-            'previous_hash': last_block_hash,
+            'index': last_block['index'] + 1,
+            'transactions': pending + [{
+                'sender': 'coinbase',
+                'receiver': miner_address,
+                'amount': 0.5 + sum(tx.get('fee', 0) for tx in pending),
+                'type': 'reward',
+                'signature': 'mining_reward'
+            }],
+            'previous_hash': last_block['hash'],
             'nonce': random.randint(0, 1000),
-            'timestamp': float(hashlib.sha256(str(random.random()).encode()).hexdigest()[:8], 16) / 10**10, # Mock timestamp
-            'tr_count': len(block_transactions),
-            'hash': ''
+            'timestamp': time.time(),
+            'tr_count': len(pending) + 1
         }
         
-        # Hash do bloco (simplificado para não travar a API)
         block_content = json.dumps(new_block, sort_keys=True).encode()
         new_block['hash'] = hashlib.sha256(block_content).hexdigest()
         
         data['chain'].append(new_block)
         data['pending_transactions'] = []
+        data['contracts'] = contracts
+        data['state'] = state
         
         with open(DATA_FILE, 'w') as f:
             json.dump(data, f, indent=4)
-            
+
     return jsonify({'status': 'success', 'message': f'Bloco #{new_block["index"]} minerado!'})
 
 @app.route('/enviar-transacao', methods=['POST'])
@@ -351,8 +363,9 @@ def enviar_transacao():
         sender_address = session['user']['address']
         amount = float(request.form['amount'])
         
-        # Verificação de saldo antes de enviar
-        balances_response = requests.get('http://localhost:5000/api/balances')
+        # Verificação de saldo antes de enviar - usa host_url para ser dinâmico
+        api_url = request.host_url.rstrip('/')
+        balances_response = requests.get(f'{api_url}/api/balances')
         balances = balances_response.json()
         current_balance = balances.get(sender_address, 100.0)
 
@@ -378,14 +391,16 @@ def enviar_transacao():
 
         # Envio para a API
         response = requests.post(
-            'http://localhost:5000/api/add-transaction',
+            f'{api_url}/api/add-transaction',
             json=transacao
         )
 
         if response.status_code == 201:
             return {'status': 'success', 'message': 'Transação enviada!'}, 201
         
-        return response.json(), response.status_code
+        # Padroniza resposta de erro da API
+        res_data = response.json()
+        return {'status': 'error', 'message': res_data.get('message', 'Erro na API')}, response.status_code
 
     except Exception as e:
         return {'status': 'error', 'message': str(e)}, 500
@@ -394,4 +409,4 @@ def enviar_transacao():
 #               INICIALIZAÇÃO
 # ===========================================
 if __name__ == '__main__':
-    app.run(debug=False, port=5000, threaded=True)
+    app.run(debug=True, port=5000, threaded=True)

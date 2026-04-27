@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card bg-dark text-white border-primary">
+        <div class="card-header border-primary d-flex justify-content-between align-items-center">
+            <h2>🧠 Simulação de Herança (Dead Man's Switch)</h2>
+            <span class="badge bg-primary">Modo Educacional</span>
+        </div>
+        <div class="card-body">
+            <p class="lead">Entenda como um Smart Contract pode automatizar a transferência de bens ou segredos sem intermediários.</p>
+            
+            <div class="row">
+                <!-- Coluna de Controle -->
+                <div class="col-md-4">
+                    <div class="list-group">
+                        <button id="btn-step-1" class="list-group-item list-group-item-action bg-secondary text-white border-light mb-2">
+                            <strong>1. Deploy</strong><br><small>Alice publica o contrato com Bob de herdeiro.</small>
+                        </button>
+                        <button id="btn-step-2" class="list-group-item list-group-item-action bg-secondary text-white border-light mb-2" disabled>
+                            <strong>2. Ping (Vívido)</strong><br><small>Alice avisa que está viva (reseta o tempo).</small>
+                        </button>
+                        <button id="btn-step-3" class="list-group-item list-group-item-action bg-secondary text-white border-light mb-2" disabled>
+                            <strong>3. Tentativa Precoce</strong><br><small>Bob tenta roubar o segredo antes da hora.</small>
+                        </button>
+                        <button id="btn-step-4" class="list-group-item list-group-item-action bg-secondary text-white border-light mb-2" disabled>
+                            <strong>4. Desaparecimento</strong><br><small>Aguardamos a expiração (10 segundos).</small>
+                        </button>
+                        <button id="btn-step-5" class="list-group-item list-group-item-action bg-secondary text-white border-light mb-2" disabled>
+                            <strong>5. Recuperação</strong><br><small>Bob finalmente acessa o segredo.</small>
+                        </button>
+                    </div>
+                    <div class="mt-3 p-2 border border-warning rounded">
+                        <small class="text-warning">ℹ️ Cada passo acima envia uma transação para a rede. O sistema irá minerar o bloco automaticamente para processar a lógica.</small>
+                    </div>
+                </div>
+
+                <!-- Coluna de Visualização -->
+                <div class="col-md-8">
+                    <div id="console" class="p-3 bg-black text-success font-monospace" style="height: 400px; overflow-y: auto; border-radius: 5px; border: 1px solid #333;">
+                        <p>> Simulação pronta. Clique no passo 1 para começar...</p>
+                    </div>
+                    
+                    <div id="status-card" class="mt-3 p-3 border rounded d-none">
+                        <div class="d-flex justify-content-between">
+                            <h5>Status do Contrato: <span id="contract-status" class="text-info">AGUARDANDO DEPLOY</span></h5>
+                            <h5>Tempo Restante: <span id="timer" class="text-warning">--</span></h5>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let contractAddr = "";
+    const consoleDiv = document.getElementById('console');
+    
+    function log(msg, type='success') {
+        const p = document.createElement('p');
+        p.className = `text-${type} mb-1`;
+        p.innerHTML = `> ${msg}`;
+        consoleDiv.appendChild(p);
+        consoleDiv.scrollTop = consoleDiv.scrollHeight;
+    }
+
+    async function callApi(endpoint, data, method = 'POST') {
+        const payload = {
+            signature: "simulated_sign_" + Math.random().toString(16).slice(2),
+            ...data
+        };
+        const res = await fetch(endpoint, {
+            method: method,
+            headers: {'Content-Type': 'application/json'},
+            body: method === 'POST' ? JSON.stringify(payload) : null
+        });
+        return await res.json();
+    }
+
+    async function processTransaction(txData) {
+        log("Enviando transação para a rede...", "info");
+        const res = await callApi('/api/add-transaction', txData);
+        if (res.message && res.message.includes("sucesso")) {
+            log("Transação pendente. Minerando bloco para processar...", "info");
+            await fetch('/mine', {method: 'POST'}); // Força mineração
+            log("Bloco minerado com sucesso!", "info");
+            
+            // Busca o resultado da execução no último bloco
+            const chainRes = await fetch('/api/blocks');
+            const chain = await chainRes.json();
+            const lastBlock = chain[chain.length - 1];
+            const tx = lastBlock.transactions.find(t => t.sender === txData.sender && t.type === txData.type);
+            return { ...res, contract_result: tx ? tx.execution_result : null };
+        }
+        return res;
+    }
+
+    document.getElementById('btn-step-1').onclick = async function() {
+        this.disabled = true;
+        log("Iniciando Deploy do contrato de Herança (Alice -> Bob)...", "warning");
+        
+        const res = await processTransaction({
+            sender: "Alice",
+            receiver: "contract_deploy",
+            amount: 0,
+            type: "deploy",
+            data: "heritage",
+            data_params: {heir: "Bob", secret: "Ouro no Jardim", timeout: 10}
+        });
+
+        if (res.contract_address || (res.message && res.message.includes("sucesso"))) {
+            contractAddr = res.contract_address || "Detectando endereço...";
+            // Se o endereço não veio direto, precisamos buscar no bloco
+            if (contractAddr.includes("Detectando")) {
+                 const chainRes = await fetch('/api/blocks');
+                 const chain = await chainRes.json();
+                 const lastBlock = chain[chain.length - 1];
+                 const deployTx = lastBlock.transactions.find(t => t.type === 'deploy');
+                 contractAddr = deployTx ? deployTx.contract_address : "erro";
+            }
+
+            log(`CONTRATO PUBLICADO! Endereço: ${contractAddr.substring(0,16)}...`);
+            document.getElementById('btn-step-2').disabled = false;
+            document.getElementById('status-card').classList.remove('d-none');
+            document.getElementById('contract-status').innerText = "ATIVO";
+            document.getElementById('timer').innerText = "10s";
+        } else {
+            log("ERRO NO DEPLOY: " + (res.message || JSON.stringify(res)), "danger");
+            this.disabled = false;
+        }
+    };
+
+    document.getElementById('btn-step-2').onclick = async function() {
+        log("Alice enviando PING (estou viva!)...", "warning");
+        await processTransaction({
+            sender: "Alice",
+            receiver: contractAddr,
+            amount: 0,
+            type: "call",
+            data: {action: "ping"}
+        });
+        log("Ping registrado! O cronômetro do contrato foi resetado no estado da blockchain.");
+        document.getElementById('btn-step-3').disabled = false;
+    };
+
+    document.getElementById('btn-step-3').onclick = async function() {
+        log("Bob tentando recuperar o segredo precocemente...", "warning");
+        const res = await processTransaction({
+            sender: "Bob",
+            receiver: contractAddr,
+            amount: 0,
+            type: "call",
+            data: {action: "recover"}
+        });
+        
+        log("RESPOSTA DO CONTRATO: " + (res.contract_result || "Ainda não expirou"), "danger");
+        document.getElementById('btn-step-4').disabled = false;
+    };
+
+    document.getElementById('btn-step-4').onclick = function() {
+        this.disabled = true;
+        log("Alice parou de responder. Aguardando expiração (10s)...", "warning");
+        let seconds = 10;
+        const interval = setInterval(() => {
+            seconds--;
+            document.getElementById('timer').innerText = seconds + "s";
+            if (seconds <= 0) {
+                clearInterval(interval);
+                log("TEMPO ESGOTADO! O estado do contrato na blockchain agora permite a revelação.", "danger");
+                document.getElementById('btn-step-5').disabled = false;
+                document.getElementById('contract-status').innerText = "EXPIRADO";
+            }
+        }, 1000);
+    };
+
+    document.getElementById('btn-step-5').onclick = async function() {
+        log("Bob solicitando a recuperação do segredo...", "warning");
+        const res = await processTransaction({
+            sender: "Bob",
+            receiver: contractAddr,
+            amount: 0,
+            type: "call",
+            data: {action: "recover"}
+        });
+        
+        if (res.contract_result && res.contract_result.includes("Segredo:")) {
+            log("SUCESSO! O contrato validou a inatividade e revelou:", "success");
+            log(`<span class='badge bg-success fs-5'>${res.contract_result}</span>`, "success");
+            log("Simulação concluída. A lógica foi executada autonomamente pela rede.", "info");
+        } else {
+            log("RESULTADO: " + (res.contract_result || "Falha na recuperação"), "danger");
+        }
+    };
+</script>
+{% endblock %}
