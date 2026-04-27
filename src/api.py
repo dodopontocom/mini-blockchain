@@ -167,6 +167,10 @@ class AddTransaction(Resource):
                         current_balance -= (tx['amount'] + tx.get('fee', 0))
                     if tx['receiver'] == s:
                         current_balance += tx['amount']
+                    
+                    # NOVO: Considera ganhos vindos de contratos (payouts)
+                    if 'payout' in tx and tx['payout']['address'] == s:
+                        current_balance += tx['payout']['amount']
             
             for tx in blockchain_data.get('pending_transactions', []):
                 if tx['sender'] == s:
@@ -210,6 +214,14 @@ class Balances(Resource):
                     balances[tx['sender']] -= (tx['amount'] + tx.get('fee', 0))
                 if tx['receiver'] != 'contract_deploy':
                     balances[tx['receiver']] += tx['amount']
+                
+                # NOVO: Se houver um payout do contrato, adiciona ao destinatário
+                if 'payout' in tx:
+                    p_addr = tx['payout']['address']
+                    p_amt = tx['payout']['amount']
+                    if p_addr not in balances:
+                        balances[p_addr] = INITIAL_BALANCE
+                    balances[p_addr] += p_amt
         
         # Pendentes (bloqueia saldo)
         for tx in data.get('pending_transactions', []):
@@ -298,10 +310,12 @@ def mine():
                 storage = state[contract_addr]
                 msg = {'sender': tx['sender'], 'amount': tx['amount'], 'params': tx.get('data_params', {}), 'timestamp': tx.get('timestamp', time.time())}
                 try:
-                    exec_env = {'storage': storage, 'msg': msg, 'result': None}
+                    exec_env = {'storage': storage, 'msg': msg, 'result': None, 'payout': None}
                     exec(code, {}, exec_env)
                     state[contract_addr] = exec_env['storage']
                     tx['execution_result'] = exec_env['result']
+                    if exec_env.get('payout'):
+                         tx['payout'] = exec_env['payout']
                 except Exception as e:
                     tx['execution_error'] = str(e)
 
@@ -312,10 +326,12 @@ def mine():
                     storage = state.get(contract_addr, {})
                     msg = {'sender': tx['sender'], 'amount': tx['amount'], 'params': tx.get('data', {}), 'timestamp': tx.get('timestamp', time.time())}
                     try:
-                        exec_env = {'storage': storage, 'msg': msg, 'result': None}
+                        exec_env = {'storage': storage, 'msg': msg, 'result': None, 'payout': None}
                         exec(code, {}, exec_env)
                         state[contract_addr] = exec_env['storage']
                         tx['execution_result'] = exec_env['result']
+                        if exec_env.get('payout'):
+                             tx['payout'] = exec_env['payout']
                     except Exception as e:
                         tx['execution_error'] = str(e)
 

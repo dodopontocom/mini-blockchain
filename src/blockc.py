@@ -103,10 +103,14 @@ class Blockchain:
                     'timestamp': tx.get('timestamp', time.time())
                 }
                 try:
-                    exec_env = {'storage': storage, 'msg': msg, 'result': None}
+                    # Inicializamos payout como None no ambiente
+                    exec_env = {'storage': storage, 'msg': msg, 'result': None, 'payout': None}
                     exec(code, {}, exec_env)
                     self.state[contract_addr] = exec_env['storage']
                     tx['execution_result'] = exec_env['result']
+                    # Se o contrato definiu um payout, salvamos na transação
+                    if exec_env.get('payout'):
+                        tx['payout'] = exec_env['payout']
                 except Exception as e:
                     tx['execution_error'] = str(e)
                     print(f"❌ Erro na Inicialização: {e}")
@@ -118,8 +122,6 @@ class Blockchain:
                     code = self.contracts[contract_addr]
                     params = tx.get('data', {})
                     
-                    # VM Simples (Restrita)
-                    # Injetamos: storage (estado do contrato), msg (detalhes da chamada)
                     storage = self.state.get(contract_addr, {})
                     msg = {
                         'sender': tx['sender'], 
@@ -129,11 +131,14 @@ class Blockchain:
                     }
                     
                     try:
-                        # Ambiente de execução controlado
-                        exec_env = {'storage': storage, 'msg': msg, 'result': None}
+                        # Inicializamos payout como None no ambiente
+                        exec_env = {'storage': storage, 'msg': msg, 'result': None, 'payout': None}
                         exec(code, {}, exec_env)
                         self.state[contract_addr] = exec_env['storage']
                         tx['execution_result'] = exec_env['result']
+                        # Se o contrato definiu um payout, salvamos na transação
+                        if exec_env.get('payout'):
+                            tx['payout'] = exec_env['payout']
                         print(f"⚙️ Contrato Executado: {contract_addr}")
                     except Exception as e:
                         tx['execution_error'] = str(e)

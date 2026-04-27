@@ -7,9 +7,10 @@ source "$(dirname "${BASH_SOURCE[0]}")/commons.sh"
 
 usage() {
   echo -e "${BOLD}Uso:${RESET}"
-  echo "  $0 deploy --from <name> --heir <name_or_addr> --secret \"Senha123\" --timeout 60"
+  echo "  $0 deploy --from <name> --heir <name_or_addr> --secret \"Senha123\" --timeout 60 --amount <val>"
   echo "  $0 ping --from <name> --to <addr>"
   echo "  $0 recover --from <heir_name> --to <addr>"
+  echo "  $0 revoke --from <owner_name> --to <addr>"
   exit 1
 }
 
@@ -76,6 +77,23 @@ case "$CMD" in
 
     SENDER=$(resolve "$FROM")
     PAYLOAD=$(jq -n --arg s "$SENDER" --arg r "$TO" --arg sig "$SIGNATURE" '{sender: $s, receiver: $r, amount: 0, type: "call", data: {action: "recover"}, signature: $sig}')
+    curl -s -X POST "$API_URL/api/add-transaction" -H "Content-Type: application/json" -d "$PAYLOAD" | jq .
+    ;;
+
+  revoke)
+    FROM=""; TO=""
+    while [[ $# -gt 0 ]]; do
+      case $1 in
+        --from) FROM="$2"; shift 2 ;;
+        --to) TO="$2"; shift 2 ;;
+        *) shift ;;
+      esac
+    done
+    [[ -z "$FROM" ]] && fail "Faltando --from <name>"
+    [[ -z "$TO" ]] && fail "Faltando --to <addr>"
+
+    SENDER=$(resolve "$FROM")
+    PAYLOAD=$(jq -n --arg s "$SENDER" --arg r "$TO" --arg sig "$SIGNATURE" '{sender: $s, receiver: $r, amount: 0, type: "call", data: {action: "revoke"}, signature: $sig}')
     curl -s -X POST "$API_URL/api/add-transaction" -H "Content-Type: application/json" -d "$PAYLOAD" | jq .
     ;;
 
