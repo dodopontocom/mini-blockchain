@@ -237,10 +237,20 @@ class AddTransaction(Resource):
             'fee': fee
         }
 
-        # Verificação de saldo otimizada
+        # Verificação de saldo e existência do destinatário
         with lock:
             blockchain_data = get_blockchain_data()
             
+            # Validação de existência do destinatário
+            receiver = new_transaction['receiver']
+            if receiver != 'contract_deploy':
+                nodes = carregar_nodes()
+                is_node = any(node['address'] == receiver for node in nodes.values())
+                is_contract = receiver in blockchain_data.get('contracts', {})
+                
+                if not is_node and not is_contract:
+                    return {"message": f"Erro: Destinatário '{receiver}' não existe no sistema (não é usuário nem contrato)."}, 400
+
             # Cálculo de saldo simplificado apenas para o sender atual
             current_balance = 100.0 # Saldo inicial
             s = new_transaction['sender']

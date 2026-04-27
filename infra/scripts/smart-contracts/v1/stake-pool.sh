@@ -53,7 +53,8 @@ case "$CMD" in
     [[ "$AMT" -le 0 ]] && fail "Faltando --amount <val> (deve ser > 0)"
 
     SENDER=$(resolve "$FROM")
-    PAYLOAD=$(jq -n --arg s "$SENDER" --arg r "$TO" --argjson a "$AMT" --arg sig "$SIGNATURE" \
+    RECEIVER=$(resolve "$TO")
+    PAYLOAD=$(jq -n --arg s "$SENDER" --arg r "$RECEIVER" --argjson a "$AMT" --arg sig "$SIGNATURE" \
       '{sender: $s, receiver: $r, amount: $a, type: "call", data: {action: "stake"}, signature: $sig}')
     curl -s -X POST "$API_URL/api/add-transaction" -H "Content-Type: application/json" -d "$PAYLOAD" | jq .
     ;;
@@ -73,7 +74,8 @@ case "$CMD" in
     [[ "$AMT" -le 0 ]] && fail "Faltando --amount <val> (deve ser > 0)"
 
     SENDER=$(resolve "$FROM")
-    PAYLOAD=$(jq -n --arg s "$SENDER" --arg r "$TO" --argjson a "$AMT" --arg sig "$SIGNATURE" \
+    RECEIVER=$(resolve "$TO")
+    PAYLOAD=$(jq -n --arg s "$SENDER" --arg r "$RECEIVER" --argjson a "$AMT" --arg sig "$SIGNATURE" \
       '{sender: $s, receiver: $r, amount: 0, type: "call", data: {action: "request_unstake", amount: $a}, signature: $sig}')
     curl -s -X POST "$API_URL/api/add-transaction" -H "Content-Type: application/json" -d "$PAYLOAD" | jq .
     ;;
@@ -91,7 +93,8 @@ case "$CMD" in
     [[ -z "$TO" ]] && fail "Faltando --to <addr>"
 
     SENDER=$(resolve "$FROM")
-    PAYLOAD=$(jq -n --arg s "$SENDER" --arg r "$TO" --arg sig "$SIGNATURE" \
+    RECEIVER=$(resolve "$TO")
+    PAYLOAD=$(jq -n --arg s "$SENDER" --arg r "$RECEIVER" --arg sig "$SIGNATURE" \
       '{sender: $s, receiver: $r, amount: 0, type: "call", data: {action: "withdraw_stake"}, signature: $sig}')
     curl -s -X POST "$API_URL/api/add-transaction" -H "Content-Type: application/json" -d "$PAYLOAD" | jq .
     ;;
@@ -109,7 +112,8 @@ case "$CMD" in
     [[ -z "$TO" ]] && fail "Faltando --to <addr>"
 
     SENDER=$(resolve "$FROM")
-    PAYLOAD=$(jq -n --arg s "$SENDER" --arg r "$TO" --arg sig "$SIGNATURE" \
+    RECEIVER=$(resolve "$TO")
+    PAYLOAD=$(jq -n --arg s "$SENDER" --arg r "$RECEIVER" --arg sig "$SIGNATURE" \
       '{sender: $s, receiver: $r, amount: 0, type: "call", data: {action: "claim_reward"}, signature: $sig}')
     curl -s -X POST "$API_URL/api/add-transaction" -H "Content-Type: application/json" -d "$PAYLOAD" | jq .
     ;;
@@ -129,7 +133,8 @@ case "$CMD" in
     [[ "$AMT" -le 0 ]] && fail "Faltando --amount <val> (deve ser > 0)"
 
     SENDER=$(resolve "$FROM")
-    PAYLOAD=$(jq -n --arg s "$SENDER" --arg r "$TO" --argjson a "$AMT" --arg sig "$SIGNATURE" \
+    RECEIVER=$(resolve "$TO")
+    PAYLOAD=$(jq -n --arg s "$SENDER" --arg r "$RECEIVER" --argjson a "$AMT" --arg sig "$SIGNATURE" \
       '{sender: $s, receiver: $r, amount: $a, type: "call", data: {action: "fund"}, signature: $sig}')
     curl -s -X POST "$API_URL/api/add-transaction" -H "Content-Type: application/json" -d "$PAYLOAD" | jq .
     ;;

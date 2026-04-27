@@ -33,6 +33,13 @@ read_contract() {
 
 resolve() {
   [[ -z "$1" ]] && fail "Nome do nó não fornecido."
+
+  # Se já for um endereço hexadecimal (40 caracteres para contrato ou 128 para usuário)
+  if [[ "$1" =~ ^[a-fA-F0-9]{40}$ ]] || [[ "$1" =~ ^[a-fA-F0-9]{128}$ ]]; then
+    echo "$1"
+    return
+  fi
+
   # Check if nodes file exists in project root
   local nodes_path="$PROJECT_ROOT/$NODES_FILE"
   if [[ ! -f "$nodes_path" ]]; then

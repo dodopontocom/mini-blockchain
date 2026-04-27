@@ -152,7 +152,8 @@ class Blockchain:
                             'result': None, 
                             'payout': None,
                             'all_states': self.state,
-                            'all_contracts': self.contracts
+                            'all_contracts': self.contracts,
+                            'PROTOCOL_POOL': os.getenv('PROTOCOL_POOL', None) # Pool padrão via ENV
                         }
                         exec(code, {}, exec_env)
                         self.state[contract_addr] = exec_env['storage']
