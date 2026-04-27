@@ -200,13 +200,24 @@ class Blockchain:
 
 # --- Inicialização de Nós ---
 if not os.path.exists(NODES_FILE):
+    # Listas para gerar nomes estilo Docker
+    adjectives = ["pensive", "jolly", "focused", "gallant", "dreamy", "brave", "vibrant", "serene", "clever", "epic"]
+    names_list = ["turing", "lovelace", "einstein", "curie", "newton", "hopper", "pascal", "tesla", "darwin", "galileo"]
+
     nodes = {'Alice': None, 'Bob': None, 'Charlie': None, 'David': None, 'Eve': None}
-    for i in range(1, 51): nodes[f"User{i}"] = None
+    
+    # Adiciona 50 nomes aleatórios
+    for i in range(1, 51):
+        random_name = f"{random.choice(adjectives)}_{random.choice(names_list)}_{i}"
+        nodes[random_name] = None
+        
     node_data = {}
     for name in nodes:
         key = SigningKey.generate(curve=NIST256p)
         node_data[name] = {'address': key.get_verifying_key().to_string().hex()}
-    with open(NODES_FILE, 'w') as f: json.dump(node_data, f, indent=4)
+        
+    with open(NODES_FILE, 'w') as f: 
+        json.dump(node_data, f, indent=4)
 
 blockchain = Blockchain()
 
