@@ -150,7 +150,7 @@ RESULTS=$(echo "$RAW_DATA" | jq -c "
     (if \"$TXID_FILTER\" != \"\" then .tx_hash | contains(\"$TXID_FILTER\") else true end) and
     (if \"$R_SENDER\" != \"\" then .sender == \"$R_SENDER\" else true end) and
     (if \"$R_RECEIVER\" != \"\" then .receiver == \"$R_RECEIVER\" else true end) and
-    (if \"$R_NAME\" != \"\" then (.sender == \"$R_NAME\" or .receiver == \"$R_NAME\") else true end)
+    (if \"$R_NAME\" != \"\" then (.sender == \"$R_NAME\" or .receiver == \"$R_NAME\" or .payout.address == \"$R_NAME\") else true end)
   )")
 
 # Display Results
@@ -171,8 +171,17 @@ while read -r tx; do
   S_NAME=$(get_name "$S_ADDR")
   R_NAME=$(get_name "$R_ADDR")
   
-  LC_NUMERIC=C printf "${CYAN}[TX]${RESET} %-16s | ${BOLD}%-10s${RESET} -> ${BOLD}%-10s${RESET} | ${GREEN}%10.4f BTC${RESET} (fee: %.4f)\n" \
-    "${TXID:0:16}" "$S_NAME" "$R_NAME" "$AMT" "$FEE"
+  # Check for Payout (Smart Contract rewards)
+  PAYOUT_STR=""
+  PAYOUT_AMT=$(echo "$tx" | jq -r '.payout.amount // 0')
+  if (( $(echo "$PAYOUT_AMT > 0" | bc -l) )); then
+    P_ADDR=$(echo "$tx" | jq -r '.payout.address')
+    P_NAME=$(get_name "$P_ADDR")
+    PAYOUT_STR=" $(echo -e "${YELLOW}[PAYOUT]${RESET} -> ${BOLD}$P_NAME${RESET} ${GREEN}+$PAYOUT_AMT BTC${RESET}")"
+  fi
+
+  LC_NUMERIC=C printf "${CYAN}[TX]${RESET} %-16s | ${BOLD}%-10s${RESET} -> ${BOLD}%-10s${RESET} | ${GREEN}%10.4f BTC${RESET} (fee: %.4f)%s\n" \
+    "${TXID:0:16}" "$S_NAME" "$R_NAME" "$AMT" "$FEE" "$PAYOUT_STR"
 done <<< "$RESULTS"
 echo "────────────────────────────────────────────"
 ok "Total: $COUNT transaction(s) found."

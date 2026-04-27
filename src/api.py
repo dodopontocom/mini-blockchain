@@ -164,17 +164,17 @@ class AddTransaction(Resource):
             for block in blockchain_data['chain']:
                 for tx in block['transactions']:
                     if tx['sender'] == s:
-                        current_balance -= (tx['amount'] + tx.get('fee', 0))
+                        current_balance -= (float(tx['amount']) + float(tx.get('fee', 0)))
                     if tx['receiver'] == s:
-                        current_balance += tx['amount']
+                        current_balance += float(tx['amount'])
                     
                     # NOVO: Considera ganhos vindos de contratos (payouts)
                     if 'payout' in tx and tx['payout']['address'] == s:
-                        current_balance += tx['payout']['amount']
+                        current_balance += float(tx['payout']['amount'])
             
             for tx in blockchain_data.get('pending_transactions', []):
                 if tx['sender'] == s:
-                    current_balance -= (tx['amount'] + tx.get('fee', 0))
+                    current_balance -= (float(tx['amount']) + float(tx.get('fee', 0)))
 
             total_cost = new_transaction['amount'] + new_transaction['fee']
 
@@ -196,39 +196,58 @@ class Balances(Resource):
         balances = {}
         INITIAL_BALANCE = 100.0
         
-        # Inicialização de saldos
-        for block in data['chain']:
-            for tx in block['transactions']:
-                s = tx['sender']
-                r = tx['receiver']
-                
-                if s != 'coinbase' and s not in balances:
-                    balances[s] = INITIAL_BALANCE
-                if r != 'contract_deploy' and r not in balances:
-                    balances[r] = INITIAL_BALANCE
+        # 1. Coleta todos os endereços conhecidos do sistema
+        all_addresses = set()
         
-        # Cálculo de saldos (blocos confirmados)
+        # Adiciona endereços do nodes_data.json (todos os usuários registrados)
+        nodes = carregar_nodes()
+        for node_info in nodes.values():
+            all_addresses.add(node_info['address'])
+
+        # Adiciona endereços que apareceram na blockchain (incluindo payouts e coinbase)
         for block in data['chain']:
             for tx in block['transactions']:
                 if tx['sender'] != 'coinbase':
-                    balances[tx['sender']] -= (tx['amount'] + tx.get('fee', 0))
-                if tx['receiver'] != 'contract_deploy':
-                    balances[tx['receiver']] += tx['amount']
+                    all_addresses.add(tx['sender'])
+                if tx['receiver'] and tx['receiver'] != 'contract_deploy':
+                    all_addresses.add(tx['receiver'])
+                if 'payout' in tx:
+                    all_addresses.add(tx['payout']['address'])
+        
+        for tx in data.get('pending_transactions', []):
+            all_addresses.add(tx['sender'])
+            if tx['receiver'] and tx['receiver'] != 'contract_deploy':
+                all_addresses.add(tx['receiver'])
+
+        # 2. Inicializa saldos
+        for addr in all_addresses:
+            balances[addr] = INITIAL_BALANCE
+            
+        # 3. Processa blocos confirmados
+        for block in data['chain']:
+            for tx in block['transactions']:
+                # Sender paga (se não for coinbase)
+                if tx['sender'] != 'coinbase':
+                    balances[tx['sender']] -= (float(tx['amount']) + float(tx.get('fee', 0)))
+                
+                # Receiver recebe (se não for deploy de contrato)
+                if tx['receiver'] and tx['receiver'] != 'contract_deploy':
+                    balances[tx['receiver']] += float(tx['amount'])
                 
                 # NOVO: Se houver um payout do contrato, adiciona ao destinatário
                 if 'payout' in tx:
                     p_addr = tx['payout']['address']
-                    p_amt = tx['payout']['amount']
+                    p_amt = float(tx['payout']['amount'])
                     if p_addr not in balances:
                         balances[p_addr] = INITIAL_BALANCE
                     balances[p_addr] += p_amt
         
-        # Pendentes (bloqueia saldo)
+        # 4. Pendentes (bloqueia saldo do sender)
         for tx in data.get('pending_transactions', []):
             s = tx['sender']
             if s not in balances:
                 balances[s] = INITIAL_BALANCE
-            balances[s] -= (tx['amount'] + tx.get('fee', 0))
+            balances[s] -= (float(tx['amount']) + float(tx.get('fee', 0)))
 
         return balances
 
@@ -315,7 +334,10 @@ def mine():
                     state[contract_addr] = exec_env['storage']
                     tx['execution_result'] = exec_env['result']
                     if exec_env.get('payout'):
-                         tx['payout'] = exec_env['payout']
+                         payout_data = exec_env['payout']
+                         if 'amount' in payout_data:
+                             payout_data['amount'] = float(payout_data['amount'])
+                         tx['payout'] = payout_data
                 except Exception as e:
                     tx['execution_error'] = str(e)
 
@@ -331,7 +353,10 @@ def mine():
                         state[contract_addr] = exec_env['storage']
                         tx['execution_result'] = exec_env['result']
                         if exec_env.get('payout'):
-                             tx['payout'] = exec_env['payout']
+                             payout_data = exec_env['payout']
+                             if 'amount' in payout_data:
+                                 payout_data['amount'] = float(payout_data['amount'])
+                             tx['payout'] = payout_data
                     except Exception as e:
                         tx['execution_error'] = str(e)
 

@@ -251,10 +251,12 @@
                 const container = document.getElementById('recent-blocks');
                 const userAddress = '{{ session.user.address }}';
                 
-                // Filtra apenas blocos que contenham ao menos uma transação onde o usuário é sender ou receiver
+                // Filtra apenas blocos que contenham ao menos uma transação onde o usuário é sender, receiver ou destinatário de payout
                 const userBlocks = blocks.filter(block => {
                     return block.transactions.some(tx => 
-                        tx.sender === userAddress || tx.receiver === userAddress
+                        tx.sender === userAddress || 
+                        tx.receiver === userAddress || 
+                        (tx.payout && tx.payout.address === userAddress)
                     );
                 });
 
@@ -267,11 +269,11 @@
                 const lastBlocks = userBlocks.slice(-3).reverse();
                 
                 container.innerHTML = lastBlocks.map(block => {
-                    // Filtra apenas as transações do usuário para mostrar nos detalhes se quiser, 
-                    // mas aqui manteremos todas do bloco para contexto, ou apenas as dele.
-                    // Vamos mostrar apenas as transações dele para ser mais específico:
+                    // Filtra apenas as transações do usuário para mostrar nos detalhes
                     const myTxs = block.transactions.filter(tx => 
-                        tx.sender === userAddress || tx.receiver === userAddress
+                        tx.sender === userAddress || 
+                        tx.receiver === userAddress ||
+                        (tx.payout && tx.payout.address === userAddress)
                     );
 
                     return `
@@ -289,20 +291,62 @@
                                 </button>
                                 <div class="collapse mt-2" id="tx-details-${block.index}">
                                     <div class="card card-body p-2 bg-light small border-0 shadow-sm">
-                                        ${myTxs.map(tx => `
-                                            <div class="border-bottom mb-2 pb-2 last-child-no-border">
-                                                <div class="d-flex justify-content-between align-items-center">
-                                                    <span class="badge ${tx.sender === userAddress ? 'bg-danger' : 'bg-success'} mb-1">
-                                                        ${tx.sender === userAddress ? '📤 Enviado' : '📥 Recebido'}
-                                                    </span>
-                                                    <span class="fw-bold ${tx.sender === userAddress ? 'text-danger' : 'text-success'}">
-                                                        ${tx.sender === userAddress ? '-' : '+'}${tx.amount.toFixed(2)} BTC
-                                                    </span>
+                                        ${myTxs.map(tx => {
+                                            const isSender = tx.sender === userAddress;
+                                            const isReceiver = tx.receiver === userAddress;
+                                            const hasPayout = tx.payout && tx.payout.address === userAddress;
+                                            
+                                            let items = [];
+                                            
+                                            // Se enviou
+                                            if (isSender) {
+                                                items.push(`
+                                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                                        <span class="badge bg-danger">📤 Enviado</span>
+                                                        <span class="fw-bold text-danger">-${tx.amount.toFixed(2)} BTC</span>
+                                                    </div>
+                                                `);
+                                            }
+                                            
+                                            // Se recebeu via transação normal
+                                            if (isReceiver && tx.sender !== 'coinbase') {
+                                                items.push(`
+                                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                                        <span class="badge bg-success">📥 Recebido</span>
+                                                        <span class="fw-bold text-success">+${tx.amount.toFixed(2)} BTC</span>
+                                                    </div>
+                                                `);
+                                            }
+
+                                            // Se recebeu recompensa de mineração
+                                            if (isReceiver && tx.sender === 'coinbase') {
+                                                items.push(`
+                                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                                        <span class="badge bg-warning text-dark">⛏️ Mineração</span>
+                                                        <span class="fw-bold text-success">+${tx.amount.toFixed(2)} BTC</span>
+                                                    </div>
+                                                `);
+                                            }
+                                            
+                                            // Se recebeu payout de contrato
+                                            if (hasPayout) {
+                                                items.push(`
+                                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                                        <span class="badge bg-info">💰 Payout Contrato</span>
+                                                        <span class="fw-bold text-success">+${tx.payout.amount.toFixed(2)} BTC</span>
+                                                    </div>
+                                                `);
+                                            }
+
+                                            return `
+                                                <div class="border-bottom mb-2 pb-2 last-child-no-border">
+                                                    ${items.join('')}
+                                                    <div class="text-muted mt-1"><strong>De:</strong> <code class="text-break">${tx.sender}</code></div>
+                                                    <div class="text-muted"><strong>Para:</strong> <code class="text-break">${tx.receiver}</code></div>
+                                                    <div class="text-muted"><strong>Taxa:</strong> ${tx.fee ? tx.fee.toFixed(4) : '0.0000'} BTC</div>
                                                 </div>
-                                                <div class="text-muted mt-1"><strong>Para/De:</strong> <code class="text-break">${tx.sender === userAddress ? tx.receiver : tx.sender}</code></div>
-                                                <div class="text-muted"><strong>Taxa:</strong> ${tx.fee ? tx.fee.toFixed(4) : '0.0000'} BTC</div>
-                                            </div>
-                                        `).join('')}
+                                            `;
+                                        }).join('')}
                                     </div>
                                 </div>
                             </div>

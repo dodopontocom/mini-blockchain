@@ -110,7 +110,11 @@ class Blockchain:
                     tx['execution_result'] = exec_env['result']
                     # Se o contrato definiu um payout, salvamos na transação
                     if exec_env.get('payout'):
-                        tx['payout'] = exec_env['payout']
+                        # Garante que amount seja float para evitar erros de cálculo
+                        payout_data = exec_env['payout']
+                        if 'amount' in payout_data:
+                            payout_data['amount'] = float(payout_data['amount'])
+                        tx['payout'] = payout_data
                 except Exception as e:
                     tx['execution_error'] = str(e)
                     print(f"❌ Erro na Inicialização: {e}")
@@ -138,7 +142,11 @@ class Blockchain:
                         tx['execution_result'] = exec_env['result']
                         # Se o contrato definiu um payout, salvamos na transação
                         if exec_env.get('payout'):
-                            tx['payout'] = exec_env['payout']
+                            # Garante que amount seja float para evitar erros de cálculo
+                            payout_data = exec_env['payout']
+                            if 'amount' in payout_data:
+                                payout_data['amount'] = float(payout_data['amount'])
+                            tx['payout'] = payout_data
                         print(f"⚙️ Contrato Executado: {contract_addr}")
                     except Exception as e:
                         tx['execution_error'] = str(e)
@@ -150,7 +158,13 @@ class Blockchain:
                 with open(DATA_FILE, 'r') as f:
                     data = json.load(f)
                     pending = data.get('pending_transactions', [])
-            else: pending = []
+                    # Sincroniza estado e contratos antes de minerar
+                    self.state = data.get('state', {})
+                    self.contracts = data.get('contracts', {})
+            else: 
+                pending = []
+                self.state = {}
+                self.contracts = {}
 
         if not pending: return
 

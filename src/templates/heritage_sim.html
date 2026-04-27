@@ -20,6 +20,9 @@
                         <button id="btn-step-2" class="list-group-item list-group-item-action bg-secondary text-white border-light mb-2" disabled>
                             <strong>2. Ping (Vívido)</strong><br><small>Alice avisa que está viva (reseta o tempo).</small>
                         </button>
+                        <button id="btn-revoke" class="list-group-item list-group-item-action bg-danger text-white border-light mb-2" disabled>
+                            <strong>2b. Revogar</strong><br><small>Alice desiste e pega o dinheiro de volta agora.</small>
+                        </button>
                         <button id="btn-step-3" class="list-group-item list-group-item-action bg-secondary text-white border-light mb-2" disabled>
                             <strong>3. Tentativa Precoce</strong><br><small>Bob tenta roubar o segredo antes da hora.</small>
                         </button>
@@ -103,7 +106,7 @@
         const res = await processTransaction({
             sender: "Alice",
             receiver: "contract_deploy",
-            amount: 0,
+            amount: 50,
             type: "deploy",
             data: "heritage",
             data_params: {heir: "Bob", secret: "Ouro no Jardim", timeout: 10}
@@ -122,6 +125,7 @@
 
             log(`CONTRATO PUBLICADO! Endereço: ${contractAddr.substring(0,16)}...`);
             document.getElementById('btn-step-2').disabled = false;
+            document.getElementById('btn-revoke').disabled = false;
             document.getElementById('status-card').classList.remove('d-none');
             document.getElementById('contract-status').innerText = "ATIVO";
             document.getElementById('timer').innerText = "10s";
@@ -142,6 +146,26 @@
         });
         log("Ping registrado! O cronômetro do contrato foi resetado no estado da blockchain.");
         document.getElementById('btn-step-3').disabled = false;
+    };
+
+    document.getElementById('btn-revoke').onclick = async function() {
+        this.disabled = true;
+        log("Alice solicitando REVOGAÇÃO do contrato...", "warning");
+        const res = await processTransaction({
+            sender: "Alice",
+            receiver: contractAddr,
+            amount: 0,
+            type: "call",
+            data: {action: "revoke"}
+        });
+        
+        log("RESPOSTA DO CONTRATO: " + (res.contract_result || "Revogado com sucesso"), "danger");
+        document.getElementById('contract-status').innerText = "REVOGADO";
+        // Desabilita outros botões já que o contrato morreu
+        document.getElementById('btn-step-2').disabled = true;
+        document.getElementById('btn-step-3').disabled = true;
+        document.getElementById('btn-step-4').disabled = true;
+        document.getElementById('btn-step-5').disabled = true;
     };
 
     document.getElementById('btn-step-3').onclick = async function() {
