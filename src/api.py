@@ -251,6 +251,10 @@ class AddTransaction(Resource):
                     # NOVO: Considera ganhos vindos de contratos (payouts)
                     if 'payout' in tx and tx['payout']['address'] == s:
                         current_balance += float(tx['payout']['amount'])
+                    
+                    # NOVO: Se o endereço atual for o contrato, subtrai o payout que ele enviou
+                    if 'payout' in tx and tx['receiver'] == s:
+                        current_balance -= float(tx['payout']['amount'])
             
             for tx in blockchain_data.get('pending_transactions', []):
                 if tx['sender'] == s:
@@ -320,13 +324,18 @@ class Balances(Resource):
                 if tx['receiver'] and tx['receiver'] != 'contract_deploy':
                     balances[tx['receiver']] += float(tx['amount'])
                 
-                # NOVO: Se houver um payout do contrato, adiciona ao destinatário
+                # NOVO: Se houver um payout do contrato, adiciona ao destinatário e subtrai do contrato
                 if 'payout' in tx:
                     p_addr = tx['payout']['address']
                     p_amt = float(tx['payout']['amount'])
+                    contract_addr = tx['receiver']
+                    
                     if p_addr not in balances:
                         balances[p_addr] = INITIAL_BALANCE
                     balances[p_addr] += p_amt
+                    
+                    if contract_addr in balances:
+                        balances[contract_addr] -= p_amt
         
         # 4. Pendentes (bloqueia saldo do sender)
         for tx in data.get('pending_transactions', []):
@@ -441,6 +450,9 @@ def carteira():
             if 'heir' in state: involved_addresses.add(state['heir'])
             if 'balances' in state:
                 for v in state.get('balances', {}): involved_addresses.add(v)
+            if 'total_staked' in state:
+                for v in state.get('stakes', {}): involved_addresses.add(v)
+                for v in state.get('unstake_requests', {}): involved_addresses.add(v)
             
             for addr in involved_addresses:
                 contract_counts[addr] = contract_counts.get(addr, 0) + 1

@@ -590,7 +590,16 @@
                     badge = '<span class="badge bg-warning text-dark">Stake</span>';
                     
                     const staked = c.state.stakes[userAddress] || 0;
-                    const rewards = (c.state.user_accrued_rewards || {})[userAddress] || 0;
+                    let rewards = (c.state.user_accrued_rewards || {})[userAddress] || 0;
+                    
+                    // Cálculo de rewards em tempo real (Accrued + Pending Accrual)
+                    const userIndex = (c.state.user_reward_index || {})[userAddress] || 0;
+                    const globalIndex = c.state.reward_index || 0;
+                    if (staked > 0) {
+                        const pendingAccrual = staked * (globalIndex - userIndex);
+                        rewards += pendingAccrual;
+                    }
+
                     const request = (c.state.unstake_requests || {})[userAddress];
                     const isOwner = c.state.owner === userAddress;
                     
