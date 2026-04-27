@@ -145,7 +145,15 @@ class Blockchain:
                     
                     try:
                         # Inicializamos payout como None no ambiente
-                        exec_env = {'storage': storage, 'msg': msg, 'result': None, 'payout': None}
+                        # NOVO: Adicionamos 'contracts_state' e 'full_contracts' para permitir cross-contract
+                        exec_env = {
+                            'storage': storage, 
+                            'msg': msg, 
+                            'result': None, 
+                            'payout': None,
+                            'all_states': self.state,
+                            'all_contracts': self.contracts
+                        }
                         exec(code, {}, exec_env)
                         self.state[contract_addr] = exec_env['storage']
                         tx['execution_result'] = exec_env['result']

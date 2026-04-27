@@ -170,6 +170,10 @@ class UserContracts(Resource):
                     if address in state.get('stakes', {}) or address in state.get('unstake_requests', {}):
                         is_relevant = True
                 
+                # RELEVANTE: Se o endereço for um contrato, ele também é relevante (para ver saldos de contratos)
+                if address == contract_addr:
+                    is_relevant = True
+                
                 # Se for relevante, adiciona à lista com informações extras
                 if is_relevant:
                     # Busca histórico de transações deste contrato (últimas 5)
