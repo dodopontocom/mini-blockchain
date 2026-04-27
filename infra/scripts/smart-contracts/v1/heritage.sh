@@ -7,7 +7,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/commons.sh"
 
 usage() {
   echo -e "${BOLD}Uso:${RESET}"
-  echo "  $0 deploy --from <name> --heir <name_or_addr> --secret \"Senha123\" --timeout 60 --amount <val>"
+  echo "  $0 deploy --from <name> --heir <name_or_addr> --secret-hash \"<sha256>\" --timeout 60 --amount <val>"
   echo "  $0 ping --from <name> --to <addr>"
   echo "  $0 recover --from <heir_name> --to <addr>"
   echo "  $0 revoke --from <owner_name> --to <addr>"
@@ -19,12 +19,12 @@ CMD="$1"; shift
 
 case "$CMD" in
   deploy)
-    FROM=""; HEIR=""; SECRET=""; TIMEOUT=0; AMT=0
+    FROM=""; HEIR=""; SECRET_HASH=""; TIMEOUT=0; AMT=0
     while [[ $# -gt 0 ]]; do
       case $1 in
         --from) FROM="$2"; shift 2 ;;
         --heir) HEIR="$2"; shift 2 ;;
-        --secret) SECRET="$2"; shift 2 ;;
+        --secret-hash) SECRET_HASH="$2"; shift 2 ;;
         --timeout) TIMEOUT="$2"; shift 2 ;;
         --amount) AMT="$2"; shift 2 ;;
         *) shift ;;
@@ -32,7 +32,13 @@ case "$CMD" in
     done
     [[ -z "$FROM" ]] && fail "Faltando --from <name>"
     [[ -z "$HEIR" ]] && fail "Faltando --heir <name_or_addr>"
-    [[ -z "$SECRET" ]] && fail "Faltando --secret <string>"
+    [[ -z "$SECRET_HASH" ]] && fail "Faltando --secret-hash <hex64>"
+    
+    # Validação do formato SHA256 (64 caracteres hexadecimais)
+    if [[ ! "$SECRET_HASH" =~ ^[a-fA-F0-9]{64}$ ]]; then
+      fail "O --secret-hash deve ser um sha256 válido (64 caracteres hex)."
+    fi
+
     [[ "$TIMEOUT" -le 0 ]] && fail "Faltando --timeout <sec> (deve ser > 0)"
     [[ "$AMT" -le 0 ]] && fail "Faltando --amount <val> (deve ser > 0)"
 
@@ -40,9 +46,9 @@ case "$CMD" in
     CODE=$(read_contract "heritage")
     step "Deploying Heritage with amount $AMT..."
     SENDER=$(resolve "$FROM")
-    PAYLOAD=$(jq -n --arg s "$SENDER" --arg c "$CODE" --arg h "$HEIR_ADDR" --arg sec "$SECRET" \
+    PAYLOAD=$(jq -n --arg s "$SENDER" --arg c "$CODE" --arg h "$HEIR_ADDR" --arg sec "$SECRET_HASH" \
       --argjson t "$TIMEOUT" --argjson a "$AMT" --arg sig "$SIGNATURE" \
-      '{sender: $s, receiver: "contract_deploy", amount: $a, type: "deploy", data: $c, data_params: {heir: $h, secret: $sec, timeout: $t}, signature: $sig}')
+      '{sender: $s, receiver: "contract_deploy", amount: $a, type: "deploy", data: $c, data_params: {heir: $h, secret_hash: $sec, timeout: $t}, signature: $sig}')
     curl -s -X POST "$API_URL/api/add-transaction" -H "Content-Type: application/json" -d "$PAYLOAD" | jq .
     ;;
 

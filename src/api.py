@@ -251,6 +251,65 @@ class Balances(Resource):
 
         return balances
 
+@api.route('/hash-secret')
+class HashSecret(Resource):
+    @api.doc(description='Gera o hash SHA256 de um segredo')
+    def post(self):
+        data = request.json
+        if not data or 'secret' not in data:
+            return {"message": "Campo 'secret' é obrigatório"}, 400
+        
+        secret = data['secret']
+        secret_hash = hashlib.sha256(secret.encode()).hexdigest()
+        
+        return {"hash": secret_hash}, 200
+
+@api.route('/verify-hash')
+class VerifyHash(Resource):
+    @api.doc(description='Verifica se um segredo corresponde a um hash SHA256')
+    def post(self):
+        data = request.json
+        if not data or 'secret' not in data or 'hash' not in data:
+            return {"message": "Campos 'secret' e 'hash' são obrigatórios"}, 400
+        
+        secret = data['secret']
+        provided_hash = data['hash']
+        computed_hash = hashlib.sha256(secret.encode()).hexdigest()
+        
+        is_valid = (computed_hash.lower() == provided_hash.lower())
+        
+        return {
+            "valid": is_valid,
+            "computed_hash": computed_hash
+        }, 200
+
+@api.route('/crack-hash')
+class CrackHash(Resource):
+    @api.doc(description='Simula um ataque de força bruta didático contra um hash')
+    def post(self):
+        data = request.json
+        target_hash = data.get('hash', '').lower()
+        
+        # Dicionário de segredos fracos (simulação)
+        common_secrets = [
+            "123456", "password", "senha", "admin", "ouro", "segredo", 
+            "123", "abc", "blockchain", "bitcoin", "minha-senha",
+            "Ouro no Jardim", "Ouro esta no jardim"
+        ]
+        
+        # 1. Tenta o dicionário
+        for word in common_secrets:
+            if hashlib.sha256(word.encode()).hexdigest() == target_hash:
+                return {"found": True, "secret": word, "method": "Ataque de Dicionário"}, 200
+        
+        # 2. Tenta números simples (0-9999)
+        for i in range(10000):
+            word = str(i)
+            if hashlib.sha256(word.encode()).hexdigest() == target_hash:
+                return {"found": True, "secret": word, "method": "Força Bruta (Números)"}, 200
+                
+        return {"found": False, "message": "O segredo é complexo demais para ser quebrado rapidamente."}, 200
+
 # ===========================================
 #               ROTAS DA UI
 # ===========================================
@@ -294,6 +353,10 @@ def blockchain_view():
 @app.route('/heritage-sim')
 def heritage_sim():
     return render_template('heritage_sim.html')
+
+@app.route('/hash-tool')
+def hash_tool():
+    return render_template('hash_tool.html')
 
 @app.route('/mine', methods=['POST'])
 def mine():

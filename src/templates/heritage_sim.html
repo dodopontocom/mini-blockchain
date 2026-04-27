@@ -101,7 +101,23 @@
 
     document.getElementById('btn-step-1').onclick = async function() {
         this.disabled = true;
-        log("Iniciando Deploy do contrato de Herança (Alice -> Bob)...", "warning");
+        log("Iniciando fluxo seguro...", "info");
+        
+        const plainSecret = "Ouro no Jardim";
+        log(`Segredo original: "${plainSecret}" (não será enviado à blockchain)`, "info");
+        
+        // Passo extra: Gerar o hash via API
+        log("Gerando hash do segredo via API segura...", "info");
+        const hashRes = await fetch('/api/hash-secret', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ secret: plainSecret })
+        });
+        const hashData = await hashRes.json();
+        const secretHash = hashData.hash;
+        
+        log(`Hash gerado: <small>${secretHash}</small>`, "info");
+        log("Iniciando Deploy do contrato com o HASH do segredo...", "warning");
         
         const res = await processTransaction({
             sender: "Alice",
@@ -109,7 +125,7 @@
             amount: 50,
             type: "deploy",
             data: "heritage",
-            data_params: {heir: "Bob", secret: "Ouro no Jardim", timeout: 10}
+            data_params: {heir: "Bob", secret_hash: secretHash, timeout: 10}
         });
 
         if (res.contract_address || (res.message && res.message.includes("sucesso"))) {
@@ -208,10 +224,10 @@
             data: {action: "recover"}
         });
         
-        if (res.contract_result && res.contract_result.includes("Segredo:")) {
-            log("SUCESSO! O contrato validou a inatividade e revelou:", "success");
-            log(`<span class='badge bg-success fs-5'>${res.contract_result}</span>`, "success");
-            log("Simulação concluída. A lógica foi executada autonomamente pela rede.", "info");
+        if (res.contract_result && res.contract_result.includes("Segredo Hash:")) {
+            log("SUCESSO! O contrato validou a inatividade e revelou o HASH:", "success");
+            log(`<span class='badge bg-success fs-6' style='word-break: break-all;'>${res.contract_result}</span>`, "success");
+            log("Simulação concluída. Bob usa esse hash para provar que possui o segredo original guardado offline.", "info");
         } else {
             log("RESULTADO: " + (res.contract_result || "Falha na recuperação"), "danger");
         }

@@ -38,11 +38,17 @@ read -p "Pressione [ENTER] para começar..."
 
 # 1. Deploy
 step "1" "Alice faz o deploy do contrato"
-echo -e "Parâmetros:\n  - Herdeiro: Bob\n  - Segredo: 'Ouro está no jardim'\n  - Tempo: 10 segundos"
+echo -e "Parâmetros:\n  - Herdeiro: Bob\n  - Segredo original: 'Ouro está no jardim' (será hasheado localmente)\n  - Tempo: 10 segundos"
+echo ""
+
+msg "Gerando hash seguro do segredo via API..."
+SECRET_HASH=$("$SCRIPT_DIR/hash-secret.sh" --secret "Ouro está no jardim")
+msg "Hash gerado: ${BOLD}$SECRET_HASH${NC}"
+msg "O segredo original NUNCA sairá da máquina da Alice em texto puro."
 echo ""
 
 # Executa deploy e captura o endereço do contrato
-DEPLOY_OUT=$($SMART_OPS deploy --from Alice --heir Bob --secret "Ouro está no jardim" --timeout 10)
+DEPLOY_OUT=$($SMART_OPS deploy --from Alice --heir Bob --secret-hash "$SECRET_HASH" --timeout 10)
 CONTRACT_ADDR=$(echo "$DEPLOY_OUT" | grep -oE '[0-9a-f]{64}' | tail -n 1)
 
 if [ -z "$CONTRACT_ADDR" ]; then

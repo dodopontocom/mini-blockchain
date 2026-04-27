@@ -4,7 +4,7 @@
 if 'owner' not in storage:
     storage['owner'] = msg['sender']
     storage['heir'] = msg['params'].get('heir')
-    storage['secret'] = msg['params'].get('secret')
+    storage['secret_hash'] = msg['params'].get('secret_hash')
     storage['timeout'] = msg['params'].get('timeout', 0)
     storage['last_seen'] = msg['timestamp']
     storage['status'] = 'ATIVO'
@@ -41,6 +41,6 @@ elif action == 'recover' and msg['sender'] == storage['heir']:
         storage['locked_amount'] = 0
         # Sinaliza para a engine realizar o pagamento ao herdeiro
         payout = {'address': storage['heir'], 'amount': liberado}
-        result = f'Segredo: {storage["secret"]} | Valor Liberado: {liberado}'
+        result = f'Segredo Hash: {storage["secret_hash"]} | Valor Liberado: {liberado}'
     else:
         result = f'Ainda nao expirou (faltam {storage["timeout"] - diff:.1f}s)'
