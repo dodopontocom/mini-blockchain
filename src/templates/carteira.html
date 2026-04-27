@@ -35,13 +35,36 @@
     .x-small {
         font-size: 0.75rem;
     }
+    /* Estilo para o dropdown com scroll */
+    .dropdown-menu-scrollable {
+        max-height: 300px;
+        overflow-y: auto;
+        min-width: 250px;
+    }
 </style>
 
 <div class="wallet-container">
     <!-- Cabeçalho com informações do usuário -->
     <div class="card mb-4">
-        <div class="card-header card-header-custom">
+        <div class="card-header card-header-custom d-flex justify-content-between align-items-center">
             <h2 class="mb-0">👤 Carteira de {{ session.user.name }}</h2>
+            <div class="dropdown">
+                <button class="btn btn-light btn-sm dropdown-toggle" type="button" id="userSelector" data-bs-toggle="dropdown">
+                    Trocar Usuário
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow dropdown-menu-scrollable">
+                    <li><h6 class="dropdown-header">Escolha uma conta:</h6></li>
+                    {% for name, info in nodes.items() %}
+                    <li>
+                        <a class="dropdown-item {% if name == session.user.name %}active{% endif %}" 
+                           href="/carteira?user={{ name }}">
+                           {{ name }} <br>
+                           <small class="text-muted">{{ info.address[:10] }}...</small>
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
         </div>
         <div class="card-body">
             <div class="row">

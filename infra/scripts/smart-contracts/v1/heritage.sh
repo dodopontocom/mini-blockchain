@@ -33,6 +33,7 @@ case "$CMD" in
     [[ -z "$HEIR" ]] && fail "Faltando --heir <name_or_addr>"
     [[ -z "$SECRET" ]] && fail "Faltando --secret <string>"
     [[ "$TIMEOUT" -le 0 ]] && fail "Faltando --timeout <sec> (deve ser > 0)"
+    [[ "$AMT" -le 0 ]] && fail "Faltando --amount <val> (deve ser > 0)"
 
     HEIR_ADDR=$(resolve "$HEIR")
     CODE=$(read_contract "heritage")

@@ -235,11 +235,18 @@ def contratos():
 @app.route('/carteira')
 def carteira():
     nodes = carregar_nodes()
-    # Se não houver nodes, o usuário precisa ser redirecionado ou criado
     if not nodes:
         return render_template('erro.html', mensagem="Nenhum nó encontrado no sistema.")
     
-    # Simula login com o primeiro nó se não houver sessão
+    # Se o parâmetro ?user=Nome estiver presente, troca o usuário da sessão
+    requested_user = request.args.get('user')
+    if requested_user in nodes:
+        session['user'] = {
+            'name': requested_user,
+            'address': nodes[requested_user]['address']
+        }
+    
+    # Login padrão se não houver sessão
     if 'user' not in session:
         first_node = list(nodes.keys())[0]
         session['user'] = {
