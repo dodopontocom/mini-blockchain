@@ -47,6 +47,7 @@ jobs:
     needs: [check-changes, build-image]
     if: always() && (needs.check-changes.result == 'success') && (needs.build-image.result == 'success' || needs.build-image.result == 'skipped')
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     
     steps:
       - name: Log in to the Container registry

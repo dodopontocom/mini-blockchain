@@ -1,7 +1,6 @@
 from flask import Flask, request, jsonify, render_template, session, Blueprint
 import requests
 from flask_restx import Api, Resource, fields
-from filelock import FileLock
 import json
 import hashlib
 import os
@@ -9,14 +8,10 @@ import random
 import string
 import time
 
-# Configurações
-DATA_FILE = "blockchain_data.json"
-LOCK_FILE = "blockchain.lock"
-lock = FileLock(LOCK_FILE)
-TAXA_BASE = 0.15
-TAXA_POR_BYTE = 0.01
-TAXA_MINIMA = 0.1
-NODES_FILE = "nodes_data.json"
+# Commons
+from src.commons.config import DATA_FILE, NODES_FILE, TAXA_BASE, TAXA_POR_BYTE, TAXA_MINIMA, LOCK_FILE
+from src.commons.helpers import lock, calcular_taxa
+from filelock import FileLock
 
 # Inicialização do Flask
 app = Flask(__name__, 
@@ -54,83 +49,148 @@ transaction_model = api.model('Transaction', {
     'sender': fields.String(required=True),
     'receiver': fields.String(required=True),
     'amount': fields.Float(required=True),
-    'type': fields.String(description='transfer, deploy, call'),
-    'data': fields.Raw(description='Código do contrato ou parâmetros da chamada'),
     'fee': fields.Float,
-    'signature': fields.String(required=True)
+    'signature': fields.String(required=True),
+    'type': fields.String,
+    'data': fields.Raw,
+    'data_params': fields.Raw
 })
 
 # ===========================================
-#               FUNÇÕES AUXILIARES
+#                  HELPERS
 # ===========================================
-def carregar_nodes():
-    """Carrega e valida os nós do arquivo"""
-    try:
-        with lock:
-            with open(NODES_FILE, 'r') as f:
-                nodes = json.load(f)
-                
-                # Validação da estrutura
-                for name, data in nodes.items():
-                    if 'address' not in data:
-                        raise ValueError(f"Nó {name} não tem endereço válido")
-                
-                return nodes
-                
-    except Exception as e:
-        print(f"Erro crítico ao carregar nós: {str(e)}")
-        raise
-        
-def calcular_taxa(transaction_data):
-    tamanho = len(json.dumps(transaction_data))
-    taxa = TAXA_BASE + (TAXA_POR_BYTE * tamanho)
-    return max(taxa, TAXA_MINIMA)
-
 def get_blockchain_data():
     with lock:
         if not os.path.exists(DATA_FILE):
-            return {"chain": [], "pending_transactions": []}
-        
+            # Estado inicial se não houver arquivo
+            genesis_block = {
+                'index': 0,
+                'transactions': [],
+                'previous_hash': "0",
+                'nonce': 0,
+                'timestamp': time.time(),
+                'hash': "0000" + "0" * 60,
+                'tr_count': 0
+            }
+            data = {
+                'chain': [genesis_block],
+                'pending_transactions': [],
+                'contracts': {},
+                'state': {}
+            }
+            with open(DATA_FILE, 'w') as f:
+                json.dump(data, f, indent=4)
+            return data
+            
         with open(DATA_FILE, 'r') as f:
             return json.load(f)
 
+def carregar_nodes():
+    if not os.path.exists(NODES_FILE):
+        return {}
+    with open(NODES_FILE, 'r') as f:
+        return json.load(f)
+
 # ===========================================
-#               ENDPOINTS DA API
+#                 ENDPOINTS
 # ===========================================
-@api.route('/state')
-class State(Resource):
-    @api.doc(description='Retorna o estado global de todos os Smart Contracts')
-    def get(self):
-        with lock:
-            if not os.path.exists(DATA_FILE): return {}
-            with open(DATA_FILE, 'r') as f:
-                return json.load(f).get('state', {})
 
 @api.route('/blocks')
 class Blocks(Resource):
-    @api.doc(description='Lista todos os blocos da blockchain')
     @api.marshal_list_with(block_model)
     def get(self):
-        data = get_blockchain_data()
-        return data['chain']
-
-@api.route('/blocks/<int:index>')
-class BlockDetail(Resource):
-    @api.doc(description='Retorna detalhes de um bloco específico')
-    @api.marshal_with(block_model)
-    def get(self, index):
-        data = get_blockchain_data()
-        if index < len(data['chain']):
-            return data['chain'][index]
-        api.abort(404, "Bloco não encontrado")
+        from src.blockc import blockchain
+        with lock:
+            blockchain.load_from_file()
+            return [b.to_dict() for b in blockchain.chain]
 
 @api.route('/pending-transactions')
 class PendingTransactions(Resource):
-    @api.doc(description='Lista transações pendentes')
-    @api.marshal_list_with(transaction_model)
     def get(self):
-        data = get_blockchain_data()
-        return data['pending_transactions']
+        from src.blockc import blockchain
+        with lock:
+            blockchain.load_from_file()
+            return blockchain.pending_transactions
+
+@api.route('/contracts')
+class Contracts(Resource):
+    def get(self):
+        from src.blockc import blockchain
+        with lock:
+            blockchain.load_from_file()
+            return {
+                "contracts": blockchain.contracts,
+                "states": blockchain.state
+            }
+
+@api.route('/user-contracts/<address>')
+class UserContracts(Resource):
+    @api.doc(description='Retorna contratos relevantes para um endereço')
+    def get(self, address):
+        from src.blockc import blockchain
+        with lock:
+            blockchain.load_from_file()
+            relevant_contracts = []
+            
+            # Coleta todas as transações para buscar histórico e criadores de contratos
+            all_txs = []
+            contract_creators = {} # {contract_addr: creator_addr}
+            for block in blockchain.chain:
+                for tx in block.transactions:
+                    all_txs.append(tx)
+                    if tx.get('type') == 'deploy' and tx.get('contract_address'):
+                        contract_creators[tx['contract_address']] = tx['sender']
+            
+            for contract_addr, state in blockchain.state.items():
+                is_relevant = False
+                contract_type = "unknown"
+                
+                # Relevância por ser o criador (quem fez o deploy)
+                if contract_creators.get(contract_addr) == address:
+                    is_relevant = True
+
+                # Detecta tipo e relevância por estado
+                if 'voters' in state:
+                    contract_type = "voting"
+                    if address in state.get('voters', []):
+                        is_relevant = True
+                
+                if 'owner' in state or 'heir' in state:
+                    contract_type = "heritage"
+                    if address == state.get('owner') or address == state.get('heir'):
+                        is_relevant = True
+                
+                if 'balances' in state:
+                    contract_type = "vault"
+                    if address in state.get('balances', {}):
+                        is_relevant = True
+                
+                # Se for relevante, adiciona à lista com informações extras
+                if is_relevant:
+                    # Busca histórico de transações deste contrato (últimas 5)
+                    history = []
+                    for tx in reversed(all_txs):
+                        if tx.get('receiver') == contract_addr or tx.get('contract_address') == contract_addr:
+                            history.append({
+                                'sender': tx.get('sender'),
+                                'type': tx.get('type'),
+                                'data': tx.get('data') if tx.get('type') == 'call' else tx.get('data_params'),
+                                'timestamp': tx.get('timestamp'),
+                                'result': tx.get('execution_result'),
+                                'error': tx.get('execution_error')
+                            })
+                            if len(history) >= 20: break
+
+                    relevant_contracts.append({
+                        "address": contract_addr,
+                        "type": contract_type,
+                        "state": state,
+                        "history": history,
+                        "timestamp": time.time(),
+                        "is_creator": contract_creators.get(contract_addr) == address
+                    })
+            
+            return relevant_contracts
 
 @api.route('/add-transaction')
 class AddTransaction(Resource):
@@ -152,6 +212,7 @@ class AddTransaction(Resource):
             'amount': data['amount'],
             'type': data.get('type', 'transfer'),
             'data': data.get('data'),
+            'data_params': data.get('data_params', {}),
             'signature': data['signature'],
             'timestamp': timestamp
         }
@@ -178,23 +239,25 @@ class AddTransaction(Resource):
             for block in blockchain_data['chain']:
                 for tx in block['transactions']:
                     if tx['sender'] == s:
-                        current_balance -= (tx['amount'] + tx.get('fee', 0))
+                        current_balance -= (float(tx['amount']) + float(tx.get('fee', 0)))
                     if tx['receiver'] == s:
-                        current_balance += tx['amount']
+                        current_balance += float(tx['amount'])
+                    
+                    # NOVO: Considera ganhos vindos de contratos (payouts)
+                    if 'payout' in tx and tx['payout']['address'] == s:
+                        current_balance += float(tx['payout']['amount'])
             
             for tx in blockchain_data.get('pending_transactions', []):
                 if tx['sender'] == s:
-                    current_balance -= (tx['amount'] + tx.get('fee', 0))
+                    current_balance -= (float(tx['amount']) + float(tx.get('fee', 0)))
 
             total_cost = new_transaction['amount'] + new_transaction['fee']
 
             if total_cost > current_balance:
                 return {"message": f"Saldo insuficiente! Disponível: {current_balance:.2f}"}, 400
 
-            blockchain_data['pending_transactions'].append(new_transaction)
-            
-            with open(DATA_FILE, 'w') as f:
-                json.dump(blockchain_data, f, indent=4)
+            from src.blockc import blockchain
+            blockchain.add_transaction(new_transaction)
 
         return {"message": "Transação adicionada com sucesso!", "transaction": new_transaction}, 201
 
@@ -202,145 +265,222 @@ class AddTransaction(Resource):
 class Balances(Resource):
     @api.doc(description='Retorna saldos de todas as carteiras')
     def get(self):
-        data = get_blockchain_data()
+        from src.blockc import blockchain
+        with lock:
+            blockchain.load_from_file()
+            data = {
+                'chain': [b.to_dict() for b in blockchain.chain],
+                'pending_transactions': blockchain.pending_transactions,
+                'contracts': blockchain.contracts,
+                'state': blockchain.state
+            }
         balances = {}
         INITIAL_BALANCE = 100.0
         
-        # Inicialização de saldos
-        for block in data['chain']:
-            for tx in block['transactions']:
-                for field in ['sender', 'receiver']:
-                    if tx[field] not in balances:
-                        balances[tx[field]] = INITIAL_BALANCE
+        # 1. Coleta todos os endereços conhecidos do sistema
+        all_addresses = set()
         
-        # Cálculo de saldos (blocos confirmados)
+        # Adiciona endereços do nodes_data.json (todos os usuários registrados)
+        nodes = carregar_nodes()
+        for node_info in nodes.values():
+            all_addresses.add(node_info['address'])
+
+        # Adiciona endereços que apareceram na blockchain (incluindo payouts e coinbase)
         for block in data['chain']:
             for tx in block['transactions']:
                 if tx['sender'] != 'coinbase':
-                    balances[tx['sender']] -= tx['amount'] + tx.get('fee', 0)
-                balances[tx['receiver']] += tx['amount']
+                    all_addresses.add(tx['sender'])
+                if tx['receiver'] and tx['receiver'] != 'contract_deploy':
+                    all_addresses.add(tx['receiver'])
+                if 'payout' in tx:
+                    all_addresses.add(tx['payout']['address'])
         
-        # Subtrair transações pendentes do saldo do remetente
         for tx in data.get('pending_transactions', []):
-            sender = tx['sender']
-            if sender != 'coinbase':
-                if sender not in balances:
-                    balances[sender] = INITIAL_BALANCE
-                balances[sender] -= tx['amount'] + tx.get('fee', 0)
+            all_addresses.add(tx['sender'])
+            if tx['receiver'] and tx['receiver'] != 'contract_deploy':
+                all_addresses.add(tx['receiver'])
+
+        # 2. Inicializa saldos
+        for addr in all_addresses:
+            balances[addr] = INITIAL_BALANCE
+            
+        # 3. Processa blocos confirmados
+        for block in data['chain']:
+            for tx in block['transactions']:
+                # Sender paga (se não for coinbase)
+                if tx['sender'] != 'coinbase':
+                    balances[tx['sender']] -= (float(tx['amount']) + float(tx.get('fee', 0)))
+                
+                # Receiver recebe (se não for deploy de contrato)
+                if tx['receiver'] and tx['receiver'] != 'contract_deploy':
+                    balances[tx['receiver']] += float(tx['amount'])
+                
+                # NOVO: Se houver um payout do contrato, adiciona ao destinatário
+                if 'payout' in tx:
+                    p_addr = tx['payout']['address']
+                    p_amt = float(tx['payout']['amount'])
+                    if p_addr not in balances:
+                        balances[p_addr] = INITIAL_BALANCE
+                    balances[p_addr] += p_amt
         
+        # 4. Pendentes (bloqueia saldo do sender)
+        for tx in data.get('pending_transactions', []):
+            s = tx['sender']
+            if s not in balances:
+                balances[s] = INITIAL_BALANCE
+            balances[s] -= (float(tx['amount']) + float(tx.get('fee', 0)))
+
         return balances
 
-@api.route('/contracts')
-class Contracts(Resource):
-    @api.doc(description='Retorna todos os contratos (código e estado)')
-    def get(self):
-        with lock:
-            if not os.path.exists(DATA_FILE): return {}
-            with open(DATA_FILE, 'r') as f:
-                data = json.load(f)
-                return {
-                    "contracts": data.get('contracts', {}),
-                    "states": data.get('state', {})
-                }
+@api.route('/hash-secret')
+class HashSecret(Resource):
+    @api.doc(description='Gera o hash SHA256 de um segredo')
+    def post(self):
+        data = request.json
+        if not data or 'secret' not in data:
+            return {"message": "Campo 'secret' é obrigatório"}, 400
+        
+        secret = data['secret']
+        secret_hash = hashlib.sha256(secret.encode()).hexdigest()
+        
+        return {"hash": secret_hash}, 200
+
+@api.route('/verify-hash')
+class VerifyHash(Resource):
+    @api.doc(description='Verifica se um segredo corresponde a um hash SHA256')
+    def post(self):
+        data = request.json
+        if not data or 'secret' not in data or 'hash' not in data:
+            return {"message": "Campos 'secret' e 'hash' são obrigatórios"}, 400
+        
+        secret = data['secret']
+        provided_hash = data['hash']
+        computed_hash = hashlib.sha256(secret.encode()).hexdigest()
+        
+        is_valid = (computed_hash.lower() == provided_hash.lower())
+        
+        return {
+            "valid": is_valid,
+            "computed_hash": computed_hash
+        }, 200
+
+@api.route('/crack-hash')
+class CrackHash(Resource):
+    @api.doc(description='Simula um ataque de força bruta didático contra um hash')
+    def post(self):
+        data = request.json
+        target_hash = data.get('hash', '').lower()
+        
+        # Dicionário de segredos fracos (simulação)
+        common_secrets = [
+            "123456", "password", "senha", "admin", "ouro", "segredo", 
+            "123", "abc", "blockchain", "bitcoin", "minha-senha",
+            "Ouro no Jardim", "Ouro esta no jardim"
+        ]
+        
+        # 1. Tenta o dicionário
+        for word in common_secrets:
+            if hashlib.sha256(word.encode()).hexdigest() == target_hash:
+                return {"found": True, "secret": word, "method": "Ataque de Dicionário"}, 200
+        
+        # 2. Tenta números simples (0-9999)
+        for i in range(10000):
+            word = str(i)
+            if hashlib.sha256(word.encode()).hexdigest() == target_hash:
+                return {"found": True, "secret": word, "method": "Força Bruta (Números)"}, 200
+                
+        return {"found": False, "message": "O segredo é complexo demais para ser quebrado rapidamente."}, 200
 
 # ===========================================
-#               FRONT-END
+#               ROTAS DA UI
 # ===========================================
+
 @app.route('/')
 def index():
     return render_template('index.html')
 
 @app.route('/contratos')
-def contratos_view():
+def contratos():
     return render_template('contratos.html')
 
 @app.route('/carteira')
 def carteira():
-    # Carrega todos os nós
-    try:
-        nodes = carregar_nodes()
-    except FileNotFoundError:
-        return render_template('erro.html', mensagem="Arquivo de nós não encontrado!")
+    nodes = carregar_nodes()
+    if not nodes:
+        return render_template('erro.html', mensagem="Nenhum nó encontrado no sistema.")
+    
+    # Identifica endereços com contratos ativos e conta quantos
+    from src.blockc import blockchain
+    with lock:
+        blockchain.load_from_file()
+        contract_counts = {} # {address: count}
+        
+        # Mapeia criadores de contratos
+        contract_creators = {}
+        for block in blockchain.chain:
+            for tx in block.transactions:
+                if tx.get('type') == 'deploy' and tx.get('contract_address'):
+                    contract_creators[tx['contract_address']] = tx['sender']
 
-    # Sincroniza dados do usuário se ele já estiver na sessão
-    if 'user' in session:
-        name = session['user']['name']
-        if name in nodes:
-            session['user']['address'] = nodes[name]['address']
-        else:
-            session.pop('user') # Usuário não existe mais
-
-    # Seleciona um nó aleatório se não houver usuário
-    if 'user' not in session:
-        if not nodes:
-            return render_template('erro.html', mensagem="Nenhum usuário cadastrado!")
+        for contract_addr, state in blockchain.state.items():
+            involved_addresses = set()
             
-        user_name, user_data = random.choice(list(nodes.items()))
-        session['user'] = {
-            'name': user_name,
-            'address': user_data['address']
-        }
+            # Criador sempre envolvido
+            creator = contract_creators.get(contract_addr)
+            if creator: involved_addresses.add(creator)
+            
+            # Outros envolvidos por estado
+            if 'voters' in state:
+                for v in state.get('voters', []): involved_addresses.add(v)
+            if 'owner' in state: involved_addresses.add(state['owner'])
+            if 'heir' in state: involved_addresses.add(state['heir'])
+            if 'balances' in state:
+                for v in state.get('balances', {}): involved_addresses.add(v)
+            
+            for addr in involved_addresses:
+                contract_counts[addr] = contract_counts.get(addr, 0) + 1
 
-    return render_template('carteira.html')
+    # Se o parâmetro ?user=Nome estiver presente, troca o usuário da sessão
+    requested_user = request.args.get('user')
+    if requested_user in nodes:
+        session['user'] = {
+            'name': requested_user,
+            'address': nodes[requested_user]['address']
+        }
+    
+    # Login padrão se não houver sessão
+    if 'user' not in session:
+        first_node = list(nodes.keys())[0]
+        session['user'] = {
+            'name': first_node,
+            'address': nodes[first_node]['address']
+        }
+    
+    return render_template('carteira.html', user=session['user'], nodes=nodes, contract_counts=contract_counts)
 
 @app.route('/blockchain')
 def blockchain_view():
     return render_template('blockchain.html')
 
+@app.route('/heritage-sim')
+def heritage_sim():
+    return render_template('heritage_sim.html')
+
+@app.route('/hash-tool')
+def hash_tool():
+    return render_template('hash_tool.html')
+
 @app.route('/mine', methods=['POST'])
 def mine():
-    with FileLock(LOCK_FILE):
-        data = get_blockchain_data()
-        pending = data.get('pending_transactions', [])
-        
-        # Seleciona um minerador aleatório (ou o usuário logado)
-        miner_address = session.get('user', {}).get('address', '00000000')
-        
-        # Lógica simplificada de mineração para a API
-        if not data['chain']:
-            # Genesis se não existir
-            last_block_hash = "0"
-            index = 0
-        else:
-            last_block = data['chain'][-1]
-            last_block_hash = last_block['hash']
-            index = len(data['chain'])
-        
-        # Cálculo de taxas
-        total_fees = sum(tx.get('fee', 0) for tx in pending)
-        recompensa = max(total_fees, 0.5)
-        
-        # Adiciona coinbase
-        block_transactions = pending.copy()
-        block_transactions.append({
-            'sender': 'coinbase',
-            'receiver': miner_address,
-            'amount': recompensa,
-            'fee': 0.0,
-            'signature': 'mining_reward'
-        })
-        
-        new_block = {
-            'index': index,
-            'transactions': block_transactions,
-            'previous_hash': last_block_hash,
-            'nonce': random.randint(0, 1000),
-            'timestamp': float(hashlib.sha256(str(random.random()).encode()).hexdigest()[:8], 16) / 10**10, # Mock timestamp
-            'tr_count': len(block_transactions),
-            'hash': ''
-        }
-        
-        # Hash do bloco (simplificado para não travar a API)
-        block_content = json.dumps(new_block, sort_keys=True).encode()
-        new_block['hash'] = hashlib.sha256(block_content).hexdigest()
-        
-        data['chain'].append(new_block)
-        data['pending_transactions'] = []
-        
-        with open(DATA_FILE, 'w') as f:
-            json.dump(data, f, indent=4)
-            
-    return jsonify({'status': 'success', 'message': f'Bloco #{new_block["index"]} minerado!'})
+    from src.blockc import blockchain
+    
+    miner_address = session.get('user', {}).get('address', '00000000')
+    new_block = blockchain.mine_block(miner_address)
+    
+    if new_block:
+        return jsonify({'status': 'success', 'message': f'Bloco #{new_block.index} minerado!'})
+    else:
+        return jsonify({'status': 'error', 'message': 'Sem transações para minerar'}), 400
 
 @app.route('/enviar-transacao', methods=['POST'])
 def enviar_transacao():
@@ -361,8 +501,9 @@ def enviar_transacao():
         sender_address = session['user']['address']
         amount = float(request.form['amount'])
         
-        # Verificação de saldo antes de enviar
-        balances_response = requests.get('http://localhost:5000/api/balances')
+        # Verificação de saldo antes de enviar - usa host_url para ser dinâmico
+        api_url = request.host_url.rstrip('/')
+        balances_response = requests.get(f'{api_url}/api/balances')
         balances = balances_response.json()
         current_balance = balances.get(sender_address, 100.0)
 
@@ -388,14 +529,58 @@ def enviar_transacao():
 
         # Envio para a API
         response = requests.post(
-            'http://localhost:5000/api/add-transaction',
+            f'{api_url}/api/add-transaction',
             json=transacao
         )
 
         if response.status_code == 201:
             return {'status': 'success', 'message': 'Transação enviada!'}, 201
         
-        return response.json(), response.status_code
+        # Padroniza resposta de erro da API
+        res_data = response.json()
+        return {'status': 'error', 'message': res_data.get('message', 'Erro na API')}, response.status_code
+
+    except Exception as e:
+        return {'status': 'error', 'message': str(e)}, 500
+
+@app.route('/chamar-contrato', methods=['POST'])
+def chamar_contrato():
+    try:
+        # Verifica se o usuário está logado
+        if 'user' not in session:
+            return {'status': 'error', 'message': 'Usuário não autenticado'}, 401
+
+        contract_address = request.form['contract_address']
+        action = request.form['action']
+        params = json.loads(request.form.get('params', '{}'))
+
+        # Dados da transação
+        sender_address = session['user']['address']
+        
+        # Usa host_url para ser dinâmico
+        api_url = request.host_url.rstrip('/')
+        
+        # Montagem da transação de chamada
+        transacao = {
+            'sender': sender_address,
+            'receiver': contract_address,
+            'amount': 0,
+            'type': 'call',
+            'data': {'action': action, **params},
+            'signature': 'assinatura_mockada'
+        }
+
+        # Envio para a API
+        response = requests.post(
+            f'{api_url}/api/add-transaction',
+            json=transacao
+        )
+
+        if response.status_code == 201:
+            return {'status': 'success', 'message': f'Ação {action} enviada!'}, 201
+        
+        res_data = response.json()
+        return {'status': 'error', 'message': res_data.get('message', 'Erro na API')}, response.status_code
 
     except Exception as e:
         return {'status': 'error', 'message': str(e)}, 500
@@ -404,4 +589,4 @@ def enviar_transacao():
 #               INICIALIZAÇÃO
 # ===========================================
 if __name__ == '__main__':
-    app.run(debug=False, port=5000, threaded=True)
+    app.run(debug=True, port=5000, threaded=True)

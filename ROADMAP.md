@@ -146,4 +146,43 @@
 
 ---
 
+## 🗺️ Visual Roadmap
+
+```mermaid
+graph TD
+    %% Nodes
+    P0["<b>Phase 0: Fundação</b><br/>✅ Estrutura & UI Base"]
+    P1["<b>Phase 1: Hardening</b><br/>PoW & Merkle Tree"]
+    P2["<b>Phase 2: Rede P2P</b><br/>Sincronização & Nós"]
+    P3["<b>Phase 3: Segurança</b><br/>JWT & TLS & HSM"]
+    P4["<b>Phase 4: Persistência</b><br/>LevelDB & UTXO Cache"]
+    P5["<b>Phase 5: DevOps</b><br/>K8s & CI/CD & Terraform"]
+    P6["<b>Phase 6: Observabilidade</b><br/>Prometheus & Grafana"]
+    P7["<b>Phase 7: API & SDK</b><br/>FastAPI & SDK JS/PY"]
+    P8["<b>Phase 8: Governance</b><br/>Mainnet & Auditoria"]
+
+    %% Connections
+    P0 --> P1
+    P1 --> P2
+    P2 --> P3
+    P3 --> P4
+    P4 --> P5
+    P5 --> P6
+    P6 --> P7
+    P7 --> P8
+
+    %% Styling
+    style P0 fill:#085041,stroke:#5dcaa5,color:#fff
+    style P1 fill:#0c447c,stroke:#85b7eb,color:#fff
+    style P2 fill:#3c3489,stroke:#afa9ec,color:#fff
+    style P3 fill:#633806,stroke:#ef9f27,color:#fff
+    style P4 fill:#444,stroke:#999,color:#fff
+    style P5 fill:#444,stroke:#999,color:#fff
+    style P6 fill:#444,stroke:#999,color:#fff
+    style P7 fill:#444,stroke:#999,color:#fff
+    style P8 fill:#444,stroke:#999,color:#fff
+```
+
+---
+
 > 🪨 Comece pela Phase 1. Sem core sólido, nada acima funciona direito.

@@ -35,13 +35,56 @@
     .x-small {
         font-size: 0.75rem;
     }
+    /* Estilo para o dropdown com scroll */
+    .dropdown-menu-scrollable {
+        max-height: 300px;
+        overflow-y: auto;
+        min-width: 250px;
+    }
+    /* Scroll para histórico de interações */
+    .history-scroll {
+        max-height: 250px; /* Aproximadamente 8 itens */
+        overflow-y: auto;
+        scrollbar-width: thin;
+    }
+    .history-scroll::-webkit-scrollbar {
+        width: 4px;
+    }
+    .history-scroll::-webkit-scrollbar-thumb {
+        background: #ccc;
+        border-radius: 4px;
+    }
 </style>
 
 <div class="wallet-container">
     <!-- Cabeçalho com informações do usuário -->
     <div class="card mb-4">
-        <div class="card-header card-header-custom">
+        <div class="card-header card-header-custom d-flex justify-content-between align-items-center">
             <h2 class="mb-0">👤 Carteira de {{ session.user.name }}</h2>
+            <div class="dropdown">
+                <button class="btn btn-light btn-sm dropdown-toggle" type="button" id="userSelector" data-bs-toggle="dropdown">
+                    Trocar Usuário
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow dropdown-menu-scrollable">
+                    <li><h6 class="dropdown-header">Escolha uma conta:</h6></li>
+                    {% for name, info in nodes.items() %}
+                    <li>
+                        <a class="dropdown-item {% if name == session.user.name %}active{% endif %}" 
+                           href="/carteira?user={{ name }}">
+                           <div class="d-flex justify-content-between align-items-center">
+                               <span>{{ name }}</span>
+                               {% if contract_counts.get(info.address, 0) > 0 %}
+                               <span class="badge bg-primary rounded-pill" title="Possui Contratos Ativos">
+                                   📜 {{ contract_counts[info.address] }}
+                               </span>
+                               {% endif %}
+                           </div>
+                           <small class="text-muted">{{ info.address[:10] }}...</small>
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
         </div>
         <div class="card-body">
             <div class="row">
@@ -116,6 +159,23 @@
 
     <!-- Blocos Minerados -->
     <div class="row">
+        <!-- Coluna de Contratos Inteligentes -->
+        <div class="col-12 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">📜 Meus Contratos Inteligentes</h5>
+                    <button class="btn btn-sm btn-light" onclick="carregarContratos()">🔄 Atualizar</button>
+                </div>
+                <div class="card-body">
+                    <div id="contracts-container" class="row">
+                        <div class="col-12 text-center text-muted p-4">
+                            Verificando interações com contratos...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="col-md-6">
             <div class="card mt-4">
                 <div class="card-header bg-dark text-white">
@@ -143,6 +203,24 @@
     </div>
 </div>
 
+<!-- Modal de Detalhes da Transação do Contrato -->
+<div class="modal fade" id="txDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title">🔍 Detalhes da Interação</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="tx-modal-body">
+                <!-- Preenchido via JS -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Modal de Sucesso -->
 <div class="modal fade" id="successModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
@@ -165,15 +243,19 @@
 
 <script>
     let successModal;
+    let txDetailsModal;
     
     document.addEventListener('DOMContentLoaded', () => {
         successModal = new bootstrap.Modal(document.getElementById('successModal'));
+        txDetailsModal = new bootstrap.Modal(document.getElementById('txDetailsModal'));
         atualizarSaldo();
         carregarBlocos();
         carregarPendentes();
+        carregarContratos();
         setInterval(atualizarSaldo, 10000);
         setInterval(carregarBlocos, 15000);
         setInterval(carregarPendentes, 5000);
+        setInterval(carregarContratos, 10000);
     });
 
     // Função para copiar endereço
@@ -220,6 +302,38 @@
         }
     }
 
+    // Função para formatar tempo de forma amigável
+    function formatadorTempo(segundos) {
+        if (segundos <= 180) {
+            return `${segundos.toFixed(0)} segundos`;
+        }
+        
+        if (segundos < 3600) {
+            const minutos = segundos / 60;
+            return `${minutos.toFixed(1)} minutos`;
+        }
+        
+        if (segundos < 86400) {
+            const horas = segundos / 3600;
+            return `${horas.toFixed(1)} horas`;
+        }
+        
+        if (segundos < 2592000) { // 30 dias
+            const dias = segundos / 86400;
+            return `${dias.toFixed(1)} dias`;
+        }
+
+        if (segundos < 31536000) { // 365 dias
+            const meses = segundos / 2592000;
+            return `${meses.toFixed(1)} meses`;
+        }
+        
+        const anos = segundos / 31536000;
+        return `${anos.toFixed(1)} anos`;
+    }
+
+    // Exemplo de uso: document.getElementById('timer-span').innerText = formatadorTempo(120);
+
     // Função para carregar blocos recentes
         async function carregarBlocos() {
             try {
@@ -228,10 +342,12 @@
                 const container = document.getElementById('recent-blocks');
                 const userAddress = '{{ session.user.address }}';
                 
-                // Filtra apenas blocos que contenham ao menos uma transação onde o usuário é sender ou receiver
+                // Filtra apenas blocos que contenham ao menos uma transação onde o usuário é sender, receiver ou destinatário de payout
                 const userBlocks = blocks.filter(block => {
                     return block.transactions.some(tx => 
-                        tx.sender === userAddress || tx.receiver === userAddress
+                        tx.sender === userAddress || 
+                        tx.receiver === userAddress || 
+                        (tx.payout && tx.payout.address === userAddress)
                     );
                 });
 
@@ -244,11 +360,11 @@
                 const lastBlocks = userBlocks.slice(-3).reverse();
                 
                 container.innerHTML = lastBlocks.map(block => {
-                    // Filtra apenas as transações do usuário para mostrar nos detalhes se quiser, 
-                    // mas aqui manteremos todas do bloco para contexto, ou apenas as dele.
-                    // Vamos mostrar apenas as transações dele para ser mais específico:
+                    // Filtra apenas as transações do usuário para mostrar nos detalhes
                     const myTxs = block.transactions.filter(tx => 
-                        tx.sender === userAddress || tx.receiver === userAddress
+                        tx.sender === userAddress || 
+                        tx.receiver === userAddress ||
+                        (tx.payout && tx.payout.address === userAddress)
                     );
 
                     return `
@@ -266,20 +382,62 @@
                                 </button>
                                 <div class="collapse mt-2" id="tx-details-${block.index}">
                                     <div class="card card-body p-2 bg-light small border-0 shadow-sm">
-                                        ${myTxs.map(tx => `
-                                            <div class="border-bottom mb-2 pb-2 last-child-no-border">
-                                                <div class="d-flex justify-content-between align-items-center">
-                                                    <span class="badge ${tx.sender === userAddress ? 'bg-danger' : 'bg-success'} mb-1">
-                                                        ${tx.sender === userAddress ? '📤 Enviado' : '📥 Recebido'}
-                                                    </span>
-                                                    <span class="fw-bold ${tx.sender === userAddress ? 'text-danger' : 'text-success'}">
-                                                        ${tx.sender === userAddress ? '-' : '+'}${tx.amount.toFixed(2)} BTC
-                                                    </span>
+                                        ${myTxs.map(tx => {
+                                            const isSender = tx.sender === userAddress;
+                                            const isReceiver = tx.receiver === userAddress;
+                                            const hasPayout = tx.payout && tx.payout.address === userAddress;
+                                            
+                                            let items = [];
+                                            
+                                            // Se enviou
+                                            if (isSender) {
+                                                items.push(`
+                                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                                        <span class="badge bg-danger">📤 Enviado</span>
+                                                        <span class="fw-bold text-danger">-${tx.amount.toFixed(2)} BTC</span>
+                                                    </div>
+                                                `);
+                                            }
+                                            
+                                            // Se recebeu via transação normal
+                                            if (isReceiver && tx.sender !== 'coinbase') {
+                                                items.push(`
+                                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                                        <span class="badge bg-success">📥 Recebido</span>
+                                                        <span class="fw-bold text-success">+${tx.amount.toFixed(2)} BTC</span>
+                                                    </div>
+                                                `);
+                                            }
+
+                                            // Se recebeu recompensa de mineração
+                                            if (isReceiver && tx.sender === 'coinbase') {
+                                                items.push(`
+                                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                                        <span class="badge bg-warning text-dark">⛏️ Mineração</span>
+                                                        <span class="fw-bold text-success">+${tx.amount.toFixed(2)} BTC</span>
+                                                    </div>
+                                                `);
+                                            }
+                                            
+                                            // Se recebeu payout de contrato
+                                            if (hasPayout) {
+                                                items.push(`
+                                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                                        <span class="badge bg-info">💰 Payout Contrato</span>
+                                                        <span class="fw-bold text-success">+${tx.payout.amount.toFixed(2)} BTC</span>
+                                                    </div>
+                                                `);
+                                            }
+
+                                            return `
+                                                <div class="border-bottom mb-2 pb-2 last-child-no-border">
+                                                    ${items.join('')}
+                                                    <div class="text-muted mt-1"><strong>De:</strong> <code class="text-break">${tx.sender}</code></div>
+                                                    <div class="text-muted"><strong>Para:</strong> <code class="text-break">${tx.receiver}</code></div>
+                                                    <div class="text-muted"><strong>Taxa:</strong> ${tx.fee ? tx.fee.toFixed(4) : '0.0000'} BTC</div>
                                                 </div>
-                                                <div class="text-muted mt-1"><strong>Para/De:</strong> <code class="text-break">${tx.sender === userAddress ? tx.receiver : tx.sender}</code></div>
-                                                <div class="text-muted"><strong>Taxa:</strong> ${tx.fee ? tx.fee.toFixed(4) : '0.0000'} BTC</div>
-                                            </div>
-                                        `).join('')}
+                                            `;
+                                        }).join('')}
                                     </div>
                                 </div>
                             </div>
@@ -328,7 +486,311 @@
         }
     }
 
-    // Função para enviar transação
+    // Função para carregar contratos relevantes
+    async function carregarContratos() {
+        try {
+            const response = await fetch(`/api/user-contracts/{{ session.user.address }}`);
+            const contracts = await response.json();
+            const container = document.getElementById('contracts-container');
+            const userAddress = '{{ session.user.address }}';
+
+            if (contracts.length === 0) {
+                container.innerHTML = '<div class="col-12 text-center text-muted p-4">Nenhum contrato inteligente vinculado a esta carteira.</div>';
+                return;
+            }
+
+            container.innerHTML = contracts.map(c => {
+                let badge = '';
+                let details = '';
+                let title = '';
+                
+                if (c.type === 'voting') {
+                    title = '🗳️ Votação';
+                    badge = '<span class="badge bg-info">Voting</span>';
+                    const resultsHtml = Object.entries(c.state.results)
+                        .map(([opt, count]) => `<li>${opt}: <strong>${count}</strong></li>`)
+                        .join('');
+                    
+                    details = `
+                        <div class="small">
+                            ${c.is_creator ? '<div class="text-primary mb-1 fw-bold">⭐ Você é o Criador</div>' : ''}
+                            <strong>Status:</strong> ${c.state.voters.includes(userAddress) ? 'Voto computado' : 'Aguardando voto'}<br>
+                            <strong>Resultados Parciais:</strong>
+                            <ul class="mb-0 ps-3">${resultsHtml}</ul>
+                        </div>
+                    `;
+                } else if (c.type === 'heritage') {
+                    title = '⚰️ Herança';
+                    badge = '<span class="badge bg-danger">Heritage</span>';
+                    
+                    const isOwner = c.state.owner === userAddress;
+                    const isHeir = c.state.heir === userAddress;
+                    const diff = (Date.now() / 1000) - c.state.last_seen;
+                    const timeLeft = Math.max(0, c.state.timeout - diff);
+                    const status = c.state.status || 'ATIVO';
+                    const isExpired = timeLeft <= 0 && status === 'ATIVO';
+                    
+                    let timerHtml = '';
+                    let actionHtml = '';
+
+                    if (status === 'ATIVO') {
+                        const color = timeLeft < 60 ? 'text-danger' : 'text-success';
+                        const tempoFormatado = formatadorTempo(timeLeft);
+                        timerHtml = `<div class="mt-2 fw-bold ${color}">⏳ Timeout Ping: <span>${tempoFormatado}</span></div>`;
+                    } else {
+                        timerHtml = `<div class="mt-2 fw-bold text-muted">Status: ${status}</div>`;
+                    }
+
+                    if (isOwner) {
+                        actionHtml = `
+                            <div class="mt-3 d-grid gap-2">
+                                <button class="btn btn-sm btn-primary" 
+                                        onclick="enviarPing('${c.address}')"
+                                        ${isExpired || status !== 'ATIVO' ? 'disabled title="Ação indisponível (expirado ou finalizado)"' : ''}>
+                                    ⚡ Enviar Ping de Vida
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" 
+                                        onclick="enviarRevoke('${c.address}')"
+                                        ${status !== 'ATIVO' ? 'disabled' : ''}>
+                                    🚫 Revogar Contrato
+                                </button>
+                            </div>
+                        `;
+                    } else if (isHeir) {
+                        actionHtml = `
+                            <div class="mt-3 d-grid">
+                                <button class="btn btn-sm btn-success" 
+                                        onclick="enviarRecover('${c.address}', ${timeLeft})"
+                                        ${status !== 'ATIVO' ? 'disabled' : ''}>
+                                    💰 Recuperar Herança
+                                </button>
+                            </div>
+                        `;
+                    }
+
+                    details = `
+                        <div class="small">
+                            <strong>Papel:</strong> ${isOwner ? 'Dono (Owner)' : 'Herdeiro (Heir)'}<br>
+                            <strong>Valor Travado:</strong> ${c.state.locked_amount || 0} BTC<br>
+                            ${timerHtml}
+                            ${actionHtml}
+                        </div>
+                    `;
+                } else if (c.type === 'vault') {
+                    title = '🏦 Vault';
+                    badge = '<span class="badge bg-secondary">Vault</span>';
+                    const balance = c.state.balances[userAddress] || 0;
+                    details = `
+                        <div class="small">
+                            <strong>Meu Saldo no Vault:</strong> <span class="text-success fw-bold">${balance.toFixed(2)} BTC</span>
+                        </div>
+                    `;
+                } else {
+                    title = '📄 Contrato';
+                    badge = '<span class="badge bg-dark">Contrato</span>';
+                    details = `<div class="small text-muted">Contrato genérico ou desconhecido</div>`;
+                }
+
+                // Renderiza Histórico Sutil
+                let historyHtml = '';
+                if (c.history && c.history.length > 0) {
+                    historyHtml = `
+                        <div class="mt-3 border-top pt-2">
+                            <div class="x-small fw-bold text-uppercase text-muted mb-1">Últimas Interações:</div>
+                            <div class="list-group list-group-flush history-scroll">
+                                ${c.history.map((h, idx) => {
+                                    const action = h.data && h.data.action ? h.data.action : (h.data && h.data.opt ? 'voto' : 'call');
+                                    const date = h.timestamp ? new Date(h.timestamp * 1000).toLocaleTimeString() : '---';
+                                    const statusClass = h.error ? 'text-danger' : 'text-success';
+                                    const icon = h.error ? '❌' : '✅';
+                                    
+                                    // Escapa aspas para o onclick
+                                    const txDataJson = JSON.stringify(h).replace(/"/g, '&quot;');
+
+                                    return `
+                                        <div class="list-group-item list-group-item-action bg-transparent p-1 border-0 x-small cursor-pointer" 
+                                             onclick="verDetalhesTx('${txDataJson}')"
+                                             style="cursor: pointer;">
+                                            <span title="${h.sender}">${icon} <strong>${action}</strong></span>
+                                            <span class="text-muted float-end">${date}</span>
+                                            <div class="text-truncate ${statusClass}" style="max-width: 100%; font-size: 0.65rem;">
+                                                ${h.error || h.result || ''}
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                return `
+                    <div class="col-md-4 mb-3">
+                        <div class="card h-100 border-start border-4 shadow-sm" style="border-left-color: #007bff !important;">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h6 class="card-title mb-0">${title}</h6>
+                                    ${badge}
+                                </div>
+                                <div class="text-muted x-small mb-2 text-truncate" title="${c.address}">
+                                    ${c.address}
+                                </div>
+                                ${details}
+                                ${historyHtml}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+        } catch (error) {
+            console.error('Erro ao carregar contratos:', error);
+        }
+    }
+
+    // Função para mostrar detalhes da transação em um modal
+    function verDetalhesTx(txJson) {
+        try {
+            const tx = JSON.parse(txJson);
+            const container = document.getElementById('tx-modal-body');
+            
+            const date = new Date(tx.timestamp * 1000).toLocaleString();
+            const action = tx.data && tx.data.action ? tx.data.action : (tx.data && tx.data.opt ? 'voto' : 'call');
+            
+            container.innerHTML = `
+                <div class="mb-3">
+                    <label class="fw-bold text-muted x-small text-uppercase">Data/Hora</label>
+                    <div>${date}</div>
+                </div>
+                <div class="mb-3">
+                    <label class="fw-bold text-muted x-small text-uppercase">Remetente (Sender)</label>
+                    <div class="font-monospace small text-break">${tx.sender}</div>
+                </div>
+                <div class="mb-3">
+                    <label class="fw-bold text-muted x-small text-uppercase">Ação</label>
+                    <div class="badge bg-primary">${action.toUpperCase()}</div>
+                </div>
+                <div class="mb-3">
+                    <label class="fw-bold text-muted x-small text-uppercase">Parâmetros Enviados</label>
+                    <pre class="bg-light p-2 rounded small">${JSON.stringify(tx.data, null, 2)}</pre>
+                </div>
+                <div class="mb-0">
+                    <label class="fw-bold text-muted x-small text-uppercase">Resultado da Execução</label>
+                    <div class="p-2 rounded ${tx.error ? 'bg-danger-subtle text-danger' : 'bg-success-subtle text-success'}">
+                        ${tx.error || tx.result || 'Sem retorno'}
+                    </div>
+                </div>
+            `;
+            
+            txDetailsModal.show();
+        } catch (e) {
+            console.error('Erro ao abrir detalhes:', e);
+        }
+    }
+
+    // Função para enviar ping de vida para contrato de herança
+    async function enviarPing(contractAddress) {
+        if (!confirm('Deseja enviar um ping de vida para este contrato? Isso resetará o cronômetro.')) return;
+
+        try {
+            const response = await fetch('/chamar-contrato', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    contract_address: contractAddress,
+                    action: 'ping',
+                    params: '{}'
+                })
+            });
+
+            const result = await response.json();
+            
+            if (result.status === 'success') {
+                alert('✅ Ping enviado com sucesso! Aguarde a mineração do bloco.');
+                carregarContratos();
+                carregarPendentes();
+            } else {
+                throw new Error(result.message || 'Erro ao enviar ping');
+            }
+         } catch (error) {
+             alert(`❌ Erro: ${error.message}`);
+             console.error('Erro ao enviar ping:', error);
+         }
+     }
+
+     // Função para enviar revogação de contrato de herança
+     async function enviarRevoke(contractAddress) {
+         if (!confirm('Deseja REALMENTE revogar este contrato? O valor travado será devolvido à sua carteira.')) return;
+
+         try {
+             const response = await fetch('/chamar-contrato', {
+                 method: 'POST',
+                 headers: {
+                     'Content-Type': 'application/x-www-form-urlencoded',
+                 },
+                 body: new URLSearchParams({
+                     contract_address: contractAddress,
+                     action: 'revoke',
+                     params: '{}'
+                 })
+             });
+
+             const result = await response.json();
+             
+             if (result.status === 'success') {
+                 alert('✅ Solicitação de revogação enviada! Aguarde a mineração.');
+                 carregarContratos();
+                 carregarPendentes();
+             } else {
+                 throw new Error(result.message || 'Erro ao revogar');
+             }
+         } catch (error) {
+             alert(`❌ Erro: ${error.message}`);
+         }
+     }
+
+     // Função para enviar recuperação de herança
+     async function enviarRecover(contractAddress, timeLeft) {
+         let msg = 'Deseja solicitar a recuperação da herança?';
+         
+         if (timeLeft > 0) {
+             msg = `⚠️ ATENÇÃO: O timeout ainda não expirou (${timeLeft.toFixed(0)}s restantes).\n\n` +
+                   `Se você enviar agora, a transação vai falhar no contrato, mas você AINDA PAGARÁ A TAXA de mineração.\n\n` +
+                   `Deseja prosseguir mesmo assim?`;
+         }
+
+         if (!confirm(msg)) return;
+
+         try {
+             const response = await fetch('/chamar-contrato', {
+                 method: 'POST',
+                 headers: {
+                     'Content-Type': 'application/x-www-form-urlencoded',
+                 },
+                 body: new URLSearchParams({
+                     contract_address: contractAddress,
+                     action: 'recover',
+                     params: '{}'
+                 })
+             });
+
+             const result = await response.json();
+             
+             if (result.status === 'success') {
+                 alert('✅ Solicitação de recuperação enviada! Verifique o resultado após a mineração.');
+                 carregarContratos();
+                 carregarPendentes();
+             } else {
+                 throw new Error(result.message || 'Erro ao recuperar');
+             }
+         } catch (error) {
+             alert(`❌ Erro: ${error.message}`);
+         }
+     }
+
+     // Função para enviar transação
     async function enviarTransacao(event) {
         event.preventDefault();
         

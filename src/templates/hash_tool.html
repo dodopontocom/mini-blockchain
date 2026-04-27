@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-9">
+            <div class="card shadow border-0">
+                <div class="card-header bg-dark text-white p-0">
+                    <ul class="nav nav-tabs border-0" id="toolTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active text-white border-0 py-3 px-4" id="generate-tab" data-bs-toggle="tab" data-bs-target="#generate" type="button" role="tab">
+                                <i class="bi bi-plus-circle"></i> 1. Gerar
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link text-white border-0 py-3 px-4" id="verify-tab" data-bs-toggle="tab" data-bs-target="#verify" type="button" role="tab">
+                                <i class="bi bi-check-all"></i> 2. Verificar
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link text-white border-0 py-3 px-4" id="crack-tab" data-bs-toggle="tab" data-bs-target="#crack" type="button" role="tab">
+                                <i class="bi bi-unlock text-warning"></i> 3. Desafio (Ataque)
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="card-body p-4">
+                    <div class="tab-content">
+                        <!-- ABA GERAR -->
+                        <div class="tab-pane fade show active" id="generate" role="tabpanel">
+                            <h5>Criar Novo Hash</h5>
+                            <div class="mb-3 mt-3">
+                                <label class="form-label">Segredo</label>
+                                <input type="text" id="gen-secret" class="form-control" placeholder="Ex: Ouro no Jardim">
+                            </div>
+                            <button id="btn-generate" class="btn btn-primary w-100">Gerar SHA256</button>
+                            <div id="gen-result" class="mt-4 d-none">
+                                <div class="input-group">
+                                    <input type="text" id="gen-hash-out" class="form-control font-monospace bg-light" readonly>
+                                    <button class="btn btn-success" id="btn-copy-gen">Copiar</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ABA VERIFICAR -->
+                        <div class="tab-pane fade" id="verify" role="tabpanel">
+                            <h5>Validar se você tem o segredo certo</h5>
+                            <div class="mb-3 mt-3">
+                                <label class="form-label">Texto para Testar</label>
+                                <input type="text" id="ver-secret" class="form-control">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Hash da Blockchain</label>
+                                <input type="text" id="ver-hash" class="form-control font-monospace">
+                            </div>
+                            <button id="btn-verify" class="btn btn-info text-white w-100">Verificar</button>
+                            <div id="ver-result" class="alert mt-4 d-none"></div>
+                        </div>
+
+                        <!-- ABA ATAQUE (DESAFIO) -->
+                        <div class="tab-pane fade" id="crack" role="tabpanel">
+                            <h5 class="text-danger"><i class="bi bi-lightning-charge"></i> Simulador de Quebra de Hash</h5>
+                            <p class="text-muted small">Tente "decodificar" um hash. O sistema tentará milhares de combinações comuns (Ataque de Dicionário e Força Bruta numérica).</p>
+                            
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Cole o Hash Alvo</label>
+                                <input type="text" id="crack-hash" class="form-control font-monospace" placeholder="Hash de 64 caracteres...">
+                            </div>
+                            
+                            <button id="btn-crack" class="btn btn-danger w-100 mb-3">Tentar Quebrar (Brute Force)</button>
+                            
+                            <div id="crack-progress" class="progress mb-3 d-none" style="height: 10px;">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated bg-danger" style="width: 100%"></div>
+                            </div>
+
+                            <div id="crack-result" class="alert d-none">
+                                <!-- Resultado aqui -->
+                            </div>
+
+                            <div class="card bg-light border-0 mt-4">
+                                <div class="card-body">
+                                    <h6>💡 Lição de Segurança:</h6>
+                                    <ul class="small mb-0">
+                                        <li>Se você usou <strong>"123"</strong> ou <strong>"password"</strong>, o ataque terá sucesso em milissegundos.</li>
+                                        <li>Se você usou <strong>"Uma frase longa e complexa de 30 letras"</strong>, o simulador falhará.</li>
+                                        <li>Na vida real, quebrar um hash complexo levaria bilhões de anos.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .nav-tabs .nav-link.active { background-color: #fff !important; color: #0d6efd !important; border-bottom: 2px solid #0d6efd !important; }
+    .font-monospace { font-size: 0.85rem; }
+</style>
+
+<script>
+    // Geração
+    document.getElementById('btn-generate').onclick = async () => {
+        const res = await fetch('/api/hash-secret', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ secret: document.getElementById('gen-secret').value })
+        });
+        const data = await res.json();
+        document.getElementById('gen-hash-out').value = data.hash;
+        document.getElementById('gen-result').classList.remove('d-none');
+    };
+
+    // Copiar
+    document.getElementById('btn-copy-gen').onclick = function() {
+        document.getElementById('gen-hash-out').select();
+        document.execCommand('copy');
+        this.innerText = "OK!";
+        setTimeout(() => this.innerText = "Copiar", 2000);
+    };
+
+    // Verificação
+    document.getElementById('btn-verify').onclick = async () => {
+        const res = await fetch('/api/verify-hash', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ 
+                secret: document.getElementById('ver-secret').value,
+                hash: document.getElementById('ver-hash').value
+            })
+        });
+        const data = await res.json();
+        const div = document.getElementById('ver-result');
+        div.className = `alert mt-4 ${data.valid ? 'alert-success' : 'alert-danger'}`;
+        div.innerHTML = data.valid ? "✅ Segredo Correto!" : "❌ Segredo Inválido!";
+        div.classList.remove('d-none');
+    };
+
+    // ATAQUE (CRACK)
+    document.getElementById('btn-crack').onclick = async function() {
+        const hash = document.getElementById('crack-hash').value;
+        if(!hash) return alert("Cole um hash primeiro");
+
+        const progress = document.getElementById('crack-progress');
+        const resultDiv = document.getElementById('crack-result');
+        const btn = this;
+
+        btn.disabled = true;
+        progress.classList.remove('d-none');
+        resultDiv.classList.add('d-none');
+
+        // Simula um delay de processamento para parecer um ataque real
+        setTimeout(async () => {
+            const res = await fetch('/api/crack-hash', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ hash })
+            });
+            const data = await res.json();
+
+            btn.disabled = false;
+            progress.classList.add('d-none');
+            resultDiv.classList.remove('d-none', 'alert-success', 'alert-warning');
+
+            if(data.found) {
+                resultDiv.classList.add('alert-success');
+                resultDiv.innerHTML = `<h5>🔓 HASH QUEBRADO!</h5>
+                    <strong>Segredo Revelado:</strong> <span class="badge bg-dark fs-6">${data.secret}</span><br>
+                    <strong>Método:</strong> ${data.method}<br>
+                    <small class="text-muted">Isso prova que seu segredo era MUITO fraco!</small>`;
+            } else {
+                resultDiv.classList.add('alert-warning');
+                resultDiv.innerHTML = `<h5>🛡️ HASH PROTEGIDO</h5>
+                    O ataque falhou. O segredo é complexo o suficiente para resistir a ataques de dicionário e sequências numéricas curtas.`;
+            }
+        }, 1500);
+    };
+</script>
+{% endblock %}

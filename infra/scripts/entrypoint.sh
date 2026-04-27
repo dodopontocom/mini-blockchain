@@ -12,7 +12,7 @@ step "Aguardando estabilização da API..."
 sleep 10 # Tempo extra para o Flask e o Minerador acordarem
 
 # 3. WARM-UP: Garante que existem contratos
-./infra/scripts/smart-ops-v2.sh deploy-vault --from User1 > /dev/null
+./infra/scripts/smart-contracts/v1/vault.sh deploy --from User1 > /dev/null
 sleep 5
 
 # 4. ESTRESSE: Agora sim, inundação pesada e aleatória

@@ -65,7 +65,14 @@
                                             <div class="mb-1"><strong>Destinatário:</strong> <code class="text-break">${tx.receiver}</code></div>
                                             <div class="mb-1"><strong>Valor:</strong> ${tx.amount.toFixed(8)} BTC</div>
                                             <div class="mb-1"><strong>Taxa:</strong> ${tx.fee ? tx.fee.toFixed(8) : '0.00000000'} BTC</div>
-                                            <div><strong>Assinatura:</strong> <code class="text-break">${tx.signature}</code></div>
+                                            ${tx.payout ? `
+                                                <div class="mt-2 p-2 border border-info rounded bg-white">
+                                                    <div class="text-info fw-bold mb-1">💰 Payout Detectado:</div>
+                                                    <div><strong>Para:</strong> <code class="text-break">${tx.payout.address}</code></div>
+                                                    <div><strong>Recebido:</strong> <span class="text-success fw-bold">+${tx.payout.amount.toFixed(2)} BTC</span></div>
+                                                </div>
+                                            ` : ''}
+                                            <div class="mt-2"><strong>Assinatura:</strong> <code class="text-break">${tx.signature}</code></div>
                                         </div>
                                     </div>
                                 </div>

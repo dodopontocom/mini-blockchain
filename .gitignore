@@ -1,4 +1,9 @@
 *.json
 *.lock
-__pycache__/.trae/rules/caveman.md
+__pycache__/
 venv/
+.trae/
+*.pyc
+*.pyo
+*.pyd
+.DS_Store
