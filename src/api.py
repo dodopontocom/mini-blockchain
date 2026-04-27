@@ -132,17 +132,24 @@ class UserContracts(Resource):
             blockchain.load_from_file()
             relevant_contracts = []
             
-            # Coleta todas as transações para buscar histórico
+            # Coleta todas as transações para buscar histórico e criadores de contratos
             all_txs = []
+            contract_creators = {} # {contract_addr: creator_addr}
             for block in blockchain.chain:
                 for tx in block.transactions:
                     all_txs.append(tx)
+                    if tx.get('type') == 'deploy' and tx.get('contract_address'):
+                        contract_creators[tx['contract_address']] = tx['sender']
             
             for contract_addr, state in blockchain.state.items():
                 is_relevant = False
                 contract_type = "unknown"
                 
-                # Detecta tipo e relevância
+                # Relevância por ser o criador (quem fez o deploy)
+                if contract_creators.get(contract_addr) == address:
+                    is_relevant = True
+
+                # Detecta tipo e relevância por estado
                 if 'voters' in state:
                     contract_type = "voting"
                     if address in state.get('voters', []):
@@ -163,11 +170,11 @@ class UserContracts(Resource):
                     # Busca histórico de transações deste contrato (últimas 5)
                     history = []
                     for tx in reversed(all_txs):
-                        if tx.get('receiver') == contract_addr:
+                        if tx.get('receiver') == contract_addr or tx.get('contract_address') == contract_addr:
                             history.append({
                                 'sender': tx.get('sender'),
                                 'type': tx.get('type'),
-                                'data': tx.get('data'),
+                                'data': tx.get('data') if tx.get('type') == 'call' else tx.get('data_params'),
                                 'timestamp': tx.get('timestamp'),
                                 'result': tx.get('execution_result'),
                                 'error': tx.get('execution_error')
@@ -179,7 +186,8 @@ class UserContracts(Resource):
                         "type": contract_type,
                         "state": state,
                         "history": history,
-                        "timestamp": time.time()
+                        "timestamp": time.time(),
+                        "is_creator": contract_creators.get(contract_addr) == address
                     })
             
             return relevant_contracts
@@ -401,18 +409,36 @@ def carteira():
     if not nodes:
         return render_template('erro.html', mensagem="Nenhum nó encontrado no sistema.")
     
-    # Identifica endereços com contratos ativos
+    # Identifica endereços com contratos ativos e conta quantos
     from src.blockc import blockchain
     with lock:
         blockchain.load_from_file()
-        addr_with_contracts = set()
-        for state in blockchain.state.values():
+        contract_counts = {} # {address: count}
+        
+        # Mapeia criadores de contratos
+        contract_creators = {}
+        for block in blockchain.chain:
+            for tx in block.transactions:
+                if tx.get('type') == 'deploy' and tx.get('contract_address'):
+                    contract_creators[tx['contract_address']] = tx['sender']
+
+        for contract_addr, state in blockchain.state.items():
+            involved_addresses = set()
+            
+            # Criador sempre envolvido
+            creator = contract_creators.get(contract_addr)
+            if creator: involved_addresses.add(creator)
+            
+            # Outros envolvidos por estado
             if 'voters' in state:
-                for v in state.get('voters', []): addr_with_contracts.add(v)
-            if 'owner' in state: addr_with_contracts.add(state['owner'])
-            if 'heir' in state: addr_with_contracts.add(state['heir'])
+                for v in state.get('voters', []): involved_addresses.add(v)
+            if 'owner' in state: involved_addresses.add(state['owner'])
+            if 'heir' in state: involved_addresses.add(state['heir'])
             if 'balances' in state:
-                for v in state.get('balances', {}): addr_with_contracts.add(v)
+                for v in state.get('balances', {}): involved_addresses.add(v)
+            
+            for addr in involved_addresses:
+                contract_counts[addr] = contract_counts.get(addr, 0) + 1
 
     # Se o parâmetro ?user=Nome estiver presente, troca o usuário da sessão
     requested_user = request.args.get('user')
@@ -430,7 +456,7 @@ def carteira():
             'address': nodes[first_node]['address']
         }
     
-    return render_template('carteira.html', user=session['user'], nodes=nodes, addr_with_contracts=addr_with_contracts)
+    return render_template('carteira.html', user=session['user'], nodes=nodes, contract_counts=contract_counts)
 
 @app.route('/blockchain')
 def blockchain_view():
