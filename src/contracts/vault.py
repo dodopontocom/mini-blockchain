@@ -27,7 +27,7 @@ if msg['amount'] > 0:
             
             # Registra o payout para a contabilidade da blockchain
             payout = {'address': addr, 'amount': fee}
-            result = f'Deposito de {msg["amount"]} (Liq: {net_amount}). Taxa de 2% ({fee}) enviada para Stake Pool.'
+            result = f'Deposito de {msg["amount"]} (Liq: {net_amount}). Taxa de 2% ({fee}) enviada para Pool {addr[:8]}...'
             break
     else:
         # Se não houver pool, o vault guarda o valor total (opcional, ou cobra e queima)

@@ -591,6 +591,7 @@
                     
                     const staked = c.state.stakes[userAddress] || 0;
                     let rewards = (c.state.user_accrued_rewards || {})[userAddress] || 0;
+                    const pendingPool = c.state.pending_rewards || 0;
                     
                     // Cálculo de rewards em tempo real (Accrued + Pending Accrual)
                     const userIndex = (c.state.user_reward_index || {})[userAddress] || 0;
@@ -633,6 +634,11 @@
                                 <span>Rewards:</span>
                                 <span class="text-success fw-bold">${rewards.toFixed(4)} BTC</span>
                             </div>
+                            ${pendingPool > 0 ? `
+                            <div class="d-flex justify-content-between mb-1 text-muted x-small">
+                                <span>Fundo Acumulado (sem stakers):</span>
+                                <span>${pendingPool.toFixed(4)} BTC</span>
+                            </div>` : ''}
                             
                             <div class="mt-3 d-grid gap-2">
                                 <button class="btn btn-sm btn-primary" onclick="promptStake('${c.address}')">➕ Fazer Stake</button>
