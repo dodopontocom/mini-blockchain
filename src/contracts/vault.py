@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+# vault smart contract
 # Inicialização (Executa no deploy)
 if 'balances' not in storage:
     storage['balances'] = {}

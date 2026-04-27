@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+# heritage smart contract
 # Inicialização (Executa no deploy)
 if 'owner' not in storage:
     storage['owner'] = msg['sender']

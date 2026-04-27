@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+# voting smart contract
 # Inicialização (Executa no deploy)
 if 'results' not in storage:
     options = msg['params'].get('options', [])

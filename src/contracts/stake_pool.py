@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+# stake_pool smart contract
 # Inicialização do contrato (Executa apenas no deploy)
 if 'owner' not in storage:
     storage['owner'] = msg['sender']
