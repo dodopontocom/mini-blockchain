@@ -28,3 +28,34 @@ def calcular_taxa(transaction_data):
     
     # Garante taxa mínima e arredonda para 8 casas (padrão crypto)
     return round(max(taxa_total, TAXA_MINIMA), 8)
+
+def formatadorTempo(segundos: int) -> str:
+    """Formata segundos em unidades legíveis conforme regras restritas (incluindo meses e anos)."""
+    if segundos <= 180:
+        return f"{segundos} segundos"
+    
+    if segundos < 3600:
+        minutos = segundos / 60
+        return f"{minutos:.1f} minutos"
+    
+    if segundos < 86400:
+        horas = segundos / 3600
+        return f"{horas:.1f} horas"
+    
+    if segundos < 2592000: # 30 dias
+        dias = segundos / 86400
+        return f"{dias:.1f} dias"
+    
+    if segundos < 31536000: # 365 dias
+        meses = segundos / 2592000
+        return f"{meses:.1f} meses"
+    
+    anos = segundos / 31536000
+    return f"{anos:.1f} anos"
+
+if __name__ == "__main__":
+    # Testes solicitados expandidos
+    testes = [60, 200, 4000, 100000, 3000000, 40000000]
+    print("--- Resultados do formatadorTempo (V2) ---")
+    for s in testes:
+        print(f"{s}s -> {formatadorTempo(s)}")

@@ -41,6 +41,19 @@
         overflow-y: auto;
         min-width: 250px;
     }
+    /* Scroll para histórico de interações */
+    .history-scroll {
+        max-height: 250px; /* Aproximadamente 8 itens */
+        overflow-y: auto;
+        scrollbar-width: thin;
+    }
+    .history-scroll::-webkit-scrollbar {
+        width: 4px;
+    }
+    .history-scroll::-webkit-scrollbar-thumb {
+        background: #ccc;
+        border-radius: 4px;
+    }
 </style>
 
 <div class="wallet-container">
@@ -289,6 +302,38 @@
         }
     }
 
+    // Função para formatar tempo de forma amigável
+    function formatadorTempo(segundos) {
+        if (segundos <= 180) {
+            return `${segundos.toFixed(0)} segundos`;
+        }
+        
+        if (segundos < 3600) {
+            const minutos = segundos / 60;
+            return `${minutos.toFixed(1)} minutos`;
+        }
+        
+        if (segundos < 86400) {
+            const horas = segundos / 3600;
+            return `${horas.toFixed(1)} horas`;
+        }
+        
+        if (segundos < 2592000) { // 30 dias
+            const dias = segundos / 86400;
+            return `${dias.toFixed(1)} dias`;
+        }
+
+        if (segundos < 31536000) { // 365 dias
+            const meses = segundos / 2592000;
+            return `${meses.toFixed(1)} meses`;
+        }
+        
+        const anos = segundos / 31536000;
+        return `${anos.toFixed(1)} anos`;
+    }
+
+    // Exemplo de uso: document.getElementById('timer-span').innerText = formatadorTempo(120);
+
     // Função para carregar blocos recentes
         async function carregarBlocos() {
             try {
@@ -483,13 +528,44 @@
                     const diff = (Date.now() / 1000) - c.state.last_seen;
                     const timeLeft = Math.max(0, c.state.timeout - diff);
                     const status = c.state.status || 'ATIVO';
+                    const isExpired = timeLeft <= 0 && status === 'ATIVO';
                     
                     let timerHtml = '';
+                    let actionHtml = '';
+
                     if (status === 'ATIVO') {
                         const color = timeLeft < 60 ? 'text-danger' : 'text-success';
-                        timerHtml = `<div class="mt-2 fw-bold ${color}">⏳ Timeout Ping: ${timeLeft.toFixed(0)}s</div>`;
+                        const tempoFormatado = formatadorTempo(timeLeft);
+                        timerHtml = `<div class="mt-2 fw-bold ${color}">⏳ Timeout Ping: <span>${tempoFormatado}</span></div>`;
                     } else {
                         timerHtml = `<div class="mt-2 fw-bold text-muted">Status: ${status}</div>`;
+                    }
+
+                    if (isOwner) {
+                        actionHtml = `
+                            <div class="mt-3 d-grid gap-2">
+                                <button class="btn btn-sm btn-primary" 
+                                        onclick="enviarPing('${c.address}')"
+                                        ${isExpired || status !== 'ATIVO' ? 'disabled title="Ação indisponível (expirado ou finalizado)"' : ''}>
+                                    ⚡ Enviar Ping de Vida
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" 
+                                        onclick="enviarRevoke('${c.address}')"
+                                        ${status !== 'ATIVO' ? 'disabled' : ''}>
+                                    🚫 Revogar Contrato
+                                </button>
+                            </div>
+                        `;
+                    } else if (isHeir) {
+                        actionHtml = `
+                            <div class="mt-3 d-grid">
+                                <button class="btn btn-sm btn-success" 
+                                        onclick="enviarRecover('${c.address}', ${timeLeft})"
+                                        ${status !== 'ATIVO' ? 'disabled' : ''}>
+                                    💰 Recuperar Herança
+                                </button>
+                            </div>
+                        `;
                     }
 
                     details = `
@@ -497,6 +573,7 @@
                             <strong>Papel:</strong> ${isOwner ? 'Dono (Owner)' : 'Herdeiro (Heir)'}<br>
                             <strong>Valor Travado:</strong> ${c.state.locked_amount || 0} BTC<br>
                             ${timerHtml}
+                            ${actionHtml}
                         </div>
                     `;
                 } else if (c.type === 'vault') {
@@ -520,7 +597,7 @@
                     historyHtml = `
                         <div class="mt-3 border-top pt-2">
                             <div class="x-small fw-bold text-uppercase text-muted mb-1">Últimas Interações:</div>
-                            <div class="list-group list-group-flush">
+                            <div class="list-group list-group-flush history-scroll">
                                 ${c.history.map((h, idx) => {
                                     const action = h.data && h.data.action ? h.data.action : (h.data && h.data.opt ? 'voto' : 'call');
                                     const date = h.timestamp ? new Date(h.timestamp * 1000).toLocaleTimeString() : '---';
@@ -611,7 +688,109 @@
         }
     }
 
-    // Função para enviar transação
+    // Função para enviar ping de vida para contrato de herança
+    async function enviarPing(contractAddress) {
+        if (!confirm('Deseja enviar um ping de vida para este contrato? Isso resetará o cronômetro.')) return;
+
+        try {
+            const response = await fetch('/chamar-contrato', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    contract_address: contractAddress,
+                    action: 'ping',
+                    params: '{}'
+                })
+            });
+
+            const result = await response.json();
+            
+            if (result.status === 'success') {
+                alert('✅ Ping enviado com sucesso! Aguarde a mineração do bloco.');
+                carregarContratos();
+                carregarPendentes();
+            } else {
+                throw new Error(result.message || 'Erro ao enviar ping');
+            }
+         } catch (error) {
+             alert(`❌ Erro: ${error.message}`);
+             console.error('Erro ao enviar ping:', error);
+         }
+     }
+
+     // Função para enviar revogação de contrato de herança
+     async function enviarRevoke(contractAddress) {
+         if (!confirm('Deseja REALMENTE revogar este contrato? O valor travado será devolvido à sua carteira.')) return;
+
+         try {
+             const response = await fetch('/chamar-contrato', {
+                 method: 'POST',
+                 headers: {
+                     'Content-Type': 'application/x-www-form-urlencoded',
+                 },
+                 body: new URLSearchParams({
+                     contract_address: contractAddress,
+                     action: 'revoke',
+                     params: '{}'
+                 })
+             });
+
+             const result = await response.json();
+             
+             if (result.status === 'success') {
+                 alert('✅ Solicitação de revogação enviada! Aguarde a mineração.');
+                 carregarContratos();
+                 carregarPendentes();
+             } else {
+                 throw new Error(result.message || 'Erro ao revogar');
+             }
+         } catch (error) {
+             alert(`❌ Erro: ${error.message}`);
+         }
+     }
+
+     // Função para enviar recuperação de herança
+     async function enviarRecover(contractAddress, timeLeft) {
+         let msg = 'Deseja solicitar a recuperação da herança?';
+         
+         if (timeLeft > 0) {
+             msg = `⚠️ ATENÇÃO: O timeout ainda não expirou (${timeLeft.toFixed(0)}s restantes).\n\n` +
+                   `Se você enviar agora, a transação vai falhar no contrato, mas você AINDA PAGARÁ A TAXA de mineração.\n\n` +
+                   `Deseja prosseguir mesmo assim?`;
+         }
+
+         if (!confirm(msg)) return;
+
+         try {
+             const response = await fetch('/chamar-contrato', {
+                 method: 'POST',
+                 headers: {
+                     'Content-Type': 'application/x-www-form-urlencoded',
+                 },
+                 body: new URLSearchParams({
+                     contract_address: contractAddress,
+                     action: 'recover',
+                     params: '{}'
+                 })
+             });
+
+             const result = await response.json();
+             
+             if (result.status === 'success') {
+                 alert('✅ Solicitação de recuperação enviada! Verifique o resultado após a mineração.');
+                 carregarContratos();
+                 carregarPendentes();
+             } else {
+                 throw new Error(result.message || 'Erro ao recuperar');
+             }
+         } catch (error) {
+             alert(`❌ Erro: ${error.message}`);
+         }
+     }
+
+     // Função para enviar transação
     async function enviarTransacao(event) {
         event.preventDefault();
         

@@ -179,7 +179,7 @@ class UserContracts(Resource):
                                 'result': tx.get('execution_result'),
                                 'error': tx.get('execution_error')
                             })
-                            if len(history) >= 5: break
+                            if len(history) >= 20: break
 
                     relevant_contracts.append({
                         "address": contract_addr,
@@ -537,6 +537,48 @@ def enviar_transacao():
             return {'status': 'success', 'message': 'Transação enviada!'}, 201
         
         # Padroniza resposta de erro da API
+        res_data = response.json()
+        return {'status': 'error', 'message': res_data.get('message', 'Erro na API')}, response.status_code
+
+    except Exception as e:
+        return {'status': 'error', 'message': str(e)}, 500
+
+@app.route('/chamar-contrato', methods=['POST'])
+def chamar_contrato():
+    try:
+        # Verifica se o usuário está logado
+        if 'user' not in session:
+            return {'status': 'error', 'message': 'Usuário não autenticado'}, 401
+
+        contract_address = request.form['contract_address']
+        action = request.form['action']
+        params = json.loads(request.form.get('params', '{}'))
+
+        # Dados da transação
+        sender_address = session['user']['address']
+        
+        # Usa host_url para ser dinâmico
+        api_url = request.host_url.rstrip('/')
+        
+        # Montagem da transação de chamada
+        transacao = {
+            'sender': sender_address,
+            'receiver': contract_address,
+            'amount': 0,
+            'type': 'call',
+            'data': {'action': action, **params},
+            'signature': 'assinatura_mockada'
+        }
+
+        # Envio para a API
+        response = requests.post(
+            f'{api_url}/api/add-transaction',
+            json=transacao
+        )
+
+        if response.status_code == 201:
+            return {'status': 'success', 'message': f'Ação {action} enviada!'}, 201
+        
         res_data = response.json()
         return {'status': 'error', 'message': res_data.get('message', 'Erro na API')}, response.status_code
 
