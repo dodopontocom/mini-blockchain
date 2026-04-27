@@ -188,6 +188,24 @@
     </div>
 </div>
 
+<!-- Modal de Detalhes da Transação do Contrato -->
+<div class="modal fade" id="txDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title">🔍 Detalhes da Interação</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="tx-modal-body">
+                <!-- Preenchido via JS -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Modal de Sucesso -->
 <div class="modal fade" id="successModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
@@ -210,9 +228,11 @@
 
 <script>
     let successModal;
+    let txDetailsModal;
     
     document.addEventListener('DOMContentLoaded', () => {
         successModal = new bootstrap.Modal(document.getElementById('successModal'));
+        txDetailsModal = new bootstrap.Modal(document.getElementById('txDetailsModal'));
         atualizarSaldo();
         carregarBlocos();
         carregarPendentes();
@@ -486,6 +506,39 @@
                     details = `<div class="small text-muted">Contrato genérico ou desconhecido</div>`;
                 }
 
+                // Renderiza Histórico Sutil
+                let historyHtml = '';
+                if (c.history && c.history.length > 0) {
+                    historyHtml = `
+                        <div class="mt-3 border-top pt-2">
+                            <div class="x-small fw-bold text-uppercase text-muted mb-1">Últimas Interações:</div>
+                            <div class="list-group list-group-flush">
+                                ${c.history.map((h, idx) => {
+                                    const action = h.data && h.data.action ? h.data.action : (h.data && h.data.opt ? 'voto' : 'call');
+                                    const date = h.timestamp ? new Date(h.timestamp * 1000).toLocaleTimeString() : '---';
+                                    const statusClass = h.error ? 'text-danger' : 'text-success';
+                                    const icon = h.error ? '❌' : '✅';
+                                    
+                                    // Escapa aspas para o onclick
+                                    const txDataJson = JSON.stringify(h).replace(/"/g, '&quot;');
+
+                                    return `
+                                        <div class="list-group-item list-group-item-action bg-transparent p-1 border-0 x-small cursor-pointer" 
+                                             onclick="verDetalhesTx('${txDataJson}')"
+                                             style="cursor: pointer;">
+                                            <span title="${h.sender}">${icon} <strong>${action}</strong></span>
+                                            <span class="text-muted float-end">${date}</span>
+                                            <div class="text-truncate ${statusClass}" style="max-width: 100%; font-size: 0.65rem;">
+                                                ${h.error || h.result || ''}
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+
                 return `
                     <div class="col-md-4 mb-3">
                         <div class="card h-100 border-start border-4 shadow-sm" style="border-left-color: #007bff !important;">
@@ -498,6 +551,7 @@
                                     ${c.address}
                                 </div>
                                 ${details}
+                                ${historyHtml}
                             </div>
                         </div>
                     </div>
@@ -506,6 +560,46 @@
 
         } catch (error) {
             console.error('Erro ao carregar contratos:', error);
+        }
+    }
+
+    // Função para mostrar detalhes da transação em um modal
+    function verDetalhesTx(txJson) {
+        try {
+            const tx = JSON.parse(txJson);
+            const container = document.getElementById('tx-modal-body');
+            
+            const date = new Date(tx.timestamp * 1000).toLocaleString();
+            const action = tx.data && tx.data.action ? tx.data.action : (tx.data && tx.data.opt ? 'voto' : 'call');
+            
+            container.innerHTML = `
+                <div class="mb-3">
+                    <label class="fw-bold text-muted x-small text-uppercase">Data/Hora</label>
+                    <div>${date}</div>
+                </div>
+                <div class="mb-3">
+                    <label class="fw-bold text-muted x-small text-uppercase">Remetente (Sender)</label>
+                    <div class="font-monospace small text-break">${tx.sender}</div>
+                </div>
+                <div class="mb-3">
+                    <label class="fw-bold text-muted x-small text-uppercase">Ação</label>
+                    <div class="badge bg-primary">${action.toUpperCase()}</div>
+                </div>
+                <div class="mb-3">
+                    <label class="fw-bold text-muted x-small text-uppercase">Parâmetros Enviados</label>
+                    <pre class="bg-light p-2 rounded small">${JSON.stringify(tx.data, null, 2)}</pre>
+                </div>
+                <div class="mb-0">
+                    <label class="fw-bold text-muted x-small text-uppercase">Resultado da Execução</label>
+                    <div class="p-2 rounded ${tx.error ? 'bg-danger-subtle text-danger' : 'bg-success-subtle text-success'}">
+                        ${tx.error || tx.result || 'Sem retorno'}
+                    </div>
+                </div>
+            `;
+            
+            txDetailsModal.show();
+        } catch (e) {
+            console.error('Erro ao abrir detalhes:', e);
         }
     }
 

@@ -132,6 +132,12 @@ class UserContracts(Resource):
             blockchain.load_from_file()
             relevant_contracts = []
             
+            # Coleta todas as transações para buscar histórico
+            all_txs = []
+            for block in blockchain.chain:
+                for tx in block.transactions:
+                    all_txs.append(tx)
+            
             for contract_addr, state in blockchain.state.items():
                 is_relevant = False
                 contract_type = "unknown"
@@ -154,11 +160,26 @@ class UserContracts(Resource):
                 
                 # Se for relevante, adiciona à lista com informações extras
                 if is_relevant:
+                    # Busca histórico de transações deste contrato (últimas 5)
+                    history = []
+                    for tx in reversed(all_txs):
+                        if tx.get('receiver') == contract_addr:
+                            history.append({
+                                'sender': tx.get('sender'),
+                                'type': tx.get('type'),
+                                'data': tx.get('data'),
+                                'timestamp': tx.get('timestamp'),
+                                'result': tx.get('execution_result'),
+                                'error': tx.get('execution_error')
+                            })
+                            if len(history) >= 5: break
+
                     relevant_contracts.append({
                         "address": contract_addr,
                         "type": contract_type,
                         "state": state,
-                        "timestamp": time.time() # Para cálculos de timeout no frontend
+                        "history": history,
+                        "timestamp": time.time()
                     })
             
             return relevant_contracts
